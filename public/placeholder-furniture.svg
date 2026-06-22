@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#e8dfd3"/>
+  <g fill="none" stroke="#7a5c3a" stroke-width="3" stroke-linecap="round">
+    <!-- Stylized armchair silhouette -->
+    <path d="M 250 380 L 250 250 Q 250 220 280 220 L 520 220 Q 550 220 550 250 L 550 380"/>
+    <path d="M 220 380 L 580 380 L 580 440 L 220 440 Z" fill="#c9b89a" stroke="#7a5c3a"/>
+    <path d="M 240 440 L 240 480 M 560 440 L 560 480"/>
+    <path d="M 280 280 Q 280 260 300 260 L 500 260 Q 520 260 520 280 L 520 360 L 280 360 Z" fill="#d4c4a8"/>
+  </g>
+  <text x="400" y="540" font-family="Georgia, serif" font-size="22" fill="#7a5c3a" text-anchor="middle" opacity="0.6">
+    Фото скоро появится
+  </text>
+</svg>

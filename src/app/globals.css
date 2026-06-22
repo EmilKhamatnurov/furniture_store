@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Design Tokens — edit here to restyle the entire shop
+   ========================================================================== */
+
+@layer base {
+  :root {
+    /* ----------------------------------------------------------------------
+       Borrvik-style palette — warm cream + near-black, editorial Scandinavian.
+       ---------------------------------------------------------------------- */
+    --background: 48 33% 97%;          /* warm cream  #FBFAF6 */
+    --foreground: 40 9% 10%;           /* near-black  #1B1A16 */
+
+    --card: 48 33% 97%;
+    --card-foreground: 40 9% 10%;
+
+    --primary: 40 9% 9%;               /* near-black ink #161613 */
+    --primary-foreground: 48 30% 98%;  /* cream         #FAFAF8 */
+
+    --secondary: 42 25% 91%;           /* soft beige    #EFECE3 */
+    --secondary-foreground: 40 9% 18%;
+
+    --muted: 44 22% 91%;               /* image/placeholder surface */
+    --muted-foreground: 44 7% 50%;     /* muted gray    #9E9B91 */
+
+    --accent: 40 45% 84%;              /* tan badge     #E8DCC0 */
+    --accent-foreground: 34 32% 26%;   /* warm brown    #5A4830 */
+
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 48 30% 98%;
+
+    --border: 42 22% 87%;              /* hairline warm border */
+    --input: 42 22% 87%;
+    --ring: 40 9% 20%;
+
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* ==========================================================================
+   Editorial helpers
+   ========================================================================== */
+@layer components {
+  /* Small uppercase tracked label — eyebrows, category tags, section kickers */
+  .eyebrow {
+    @apply text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground;
+  }
+}
+
+/* ==========================================================================
+   CMS content — styles for admin-authored HTML (static pages & blog body)
+   No @tailwindcss/typography dependency; minimal hand-rolled prose styles.
+   ========================================================================== */
+.cms-content {
+  @apply text-foreground/90 leading-relaxed;
+}
+.cms-content > * + * {
+  @apply mt-4;
+}
+.cms-content h2 {
+  @apply font-serif text-2xl font-semibold mt-10 mb-2;
+}
+.cms-content h3 {
+  @apply font-serif text-xl font-semibold mt-8 mb-2;
+}
+.cms-content p {
+  @apply text-base;
+}
+.cms-content a {
+  @apply text-primary underline underline-offset-2 hover:no-underline;
+}
+.cms-content ul {
+  @apply list-disc pl-6 space-y-1;
+}
+.cms-content ol {
+  @apply list-decimal pl-6 space-y-1;
+}
+.cms-content blockquote {
+  @apply border-l-2 border-border pl-4 italic text-muted-foreground;
+}
+.cms-content img {
+  @apply rounded-lg my-6;
+}
+.cms-content table {
+  @apply w-full text-sm border-collapse;
+}
+.cms-content th,
+.cms-content td {
+  @apply border border-border px-3 py-2 text-left;
+}

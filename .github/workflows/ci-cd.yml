@@ -1,0 +1,131 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # CI: lint, type-check, test
+  # ---------------------------------------------------------------------------
+  ci:
+    name: Lint · Type-check · Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: furniture_shop_test
+          POSTGRES_USER: furniture_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://furniture_user:test_password@localhost:5432/furniture_shop_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+          # Dummy values for env validation in tests
+          APP_SECRET: test-secret-min-32-chars-xxxxxxxxxx
+          S3_ENDPOINT: https://s3.selcdn.ru
+          S3_REGION: ru-1
+          S3_BUCKET: test-bucket
+          S3_ACCESS_KEY: test
+          S3_SECRET_KEY: test
+          S3_PUBLIC_HOSTNAME: s3.selcdn.ru
+          YUKASSA_SHOP_ID: test
+          YUKASSA_SECRET_KEY: test
+          YUKASSA_WEBHOOK_SECRET: test
+          UNISENDER_API_KEY: test
+          EMAIL_FROM: test@example.com
+          EMAIL_FROM_NAME: Test
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+        run: npm run test:coverage
+
+  # ---------------------------------------------------------------------------
+  # CD: build and deploy (main branch only)
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Build & Deploy
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/furniture-shop-app:${{ github.sha }}
+            ${{ env.REGISTRY }}/furniture-shop-app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/furniture-shop
+            export APP_VERSION=${{ github.sha }}
+            export REGISTRY=${{ env.REGISTRY }}
+            docker compose --profile prod pull app worker
+            docker compose --profile prod up -d --no-deps app worker
+            docker image prune -f
