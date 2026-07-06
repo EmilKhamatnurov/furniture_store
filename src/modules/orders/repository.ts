@@ -2,81 +2,102 @@ import "server-only";
 import { db } from "@/lib/db";
 import { orders, orderItems, orderEvents } from "./db/schema";
 import { eq, or, desc, sql } from "drizzle-orm";
-import type { CartItem } from "@/modules/cart/types";
 import type { ShippingAddress } from "./db/schema";
 
 // ---------------------------------------------------------------------------
 // Orders repository — all DB writes for the order module
 // ---------------------------------------------------------------------------
 
+/**
+ * One order line. All fields (prices, names, SKU) must come from the DB —
+ * never from client input. The checkout action re-reads the catalog before
+ * building these.
+ */
+export interface OrderLineInput {
+  variantId: string;
+  productName: string;
+  variantLabel: string;
+  sku: string;
+  quantity: number;
+  unitPriceCopecks: bigint;
+}
+
 export interface CreateOrderInput {
   email: string;
   shippingAddress: ShippingAddress;
-  items: CartItem[];
+  items: OrderLineInput[];
   note?: string | undefined;
   /** Link to a logged-in customer, when present */
   customerId?: string | undefined;
-}
-
-/** Generate FS-YYYY-NNNNN order number, globally sequential */
-async function generateOrderNumber(): Promise<string> {
-  const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(orders);
-  const seq = (row?.count ?? 0) + 1;
-  return `FS-${new Date().getFullYear()}-${String(seq).padStart(5, "0")}`;
+  /** Delivery cost in kopecks, computed server-side (defaults to 0) */
+  shippingCopecks?: bigint | undefined;
 }
 
 export async function createOrder(input: CreateOrderInput) {
   const { email, shippingAddress, items, note, customerId } = input;
 
-  const orderNumber = await generateOrderNumber();
+  if (items.length === 0) {
+    throw new Error("Cannot create an order with no items");
+  }
 
   const subtotalCopecks = items.reduce(
-    (sum, item) => sum + item.priceCopecks * BigInt(item.quantity),
+    (sum, item) => sum + item.unitPriceCopecks * BigInt(item.quantity),
     0n
   );
-  const shippingCopecks = 0n; // Shipping module — future step
+  const shippingCopecks = input.shippingCopecks ?? 0n;
   const totalCopecks = subtotalCopecks + shippingCopecks;
 
-  const [order] = await db
-    .insert(orders)
-    .values({
-      number: orderNumber,
-      email,
-      customerId: customerId ?? null,
-      status: "draft",
-      shippingAddress,
-      subtotalCopecks,
-      shippingCopecks,
-      totalCopecks,
-      customerNote: note ?? null,
-    })
-    .returning();
+  // Single transaction: order + items + event are all-or-nothing, so a failed
+  // insert can never leave a payable order without line items.
+  return await db.transaction(async (tx) => {
+    // FS-YYYY-NNNNN — sequential part comes from a Postgres sequence (race-safe)
+    const seqRows = await tx.execute<{ seq: string }>(
+      sql`SELECT nextval('order_number_seq')::text AS seq`
+    );
+    const seq = Number(seqRows[0]?.seq ?? 0);
+    if (!seq) throw new Error("order_number_seq returned no value");
+    const orderNumber = `FS-${new Date().getFullYear()}-${String(seq).padStart(5, "0")}`;
 
-  if (!order) throw new Error("Order insert returned no rows");
+    const [order] = await tx
+      .insert(orders)
+      .values({
+        number: orderNumber,
+        // Lowercased so account lookups by email match guest orders
+        email: email.toLowerCase(),
+        customerId: customerId ?? null,
+        status: "draft",
+        shippingAddress,
+        subtotalCopecks,
+        shippingCopecks,
+        totalCopecks,
+        customerNote: note ?? null,
+      })
+      .returning();
 
-  await db.insert(orderItems).values(
-    items.map((item) => ({
+    if (!order) throw new Error("Order insert returned no rows");
+
+    await tx.insert(orderItems).values(
+      items.map((item) => ({
+        orderId: order.id,
+        variantId: item.variantId,
+        productName: item.productName,
+        variantLabel: item.variantLabel,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPriceCopecks: item.unitPriceCopecks,
+        totalPriceCopecks: item.unitPriceCopecks * BigInt(item.quantity),
+      }))
+    );
+
+    await tx.insert(orderEvents).values({
       orderId: order.id,
-      variantId: item.variantId,
-      productName: item.productName,
-      variantLabel: item.variantLabel,
-      sku: item.sku,
-      quantity: item.quantity,
-      unitPriceCopecks: item.priceCopecks,
-      totalPriceCopecks: item.priceCopecks * BigInt(item.quantity),
-    }))
-  );
+      eventType: "created",
+      actorType: "customer",
+      payload: { orderNumber, email: email.toLowerCase() },
+    });
 
-  await db.insert(orderEvents).values({
-    orderId: order.id,
-    eventType: "created",
-    actorType: "customer",
-    payload: { orderNumber, email },
+    return order;
   });
-
-  return order;
 }
 
 export async function getOrderById(id: string) {

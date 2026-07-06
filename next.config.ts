@@ -5,8 +5,20 @@ const nextConfig: NextConfig = {
   // (the Dockerfile copies it and the entrypoint runs `node server.js`).
   output: "standalone",
 
+  // Pin the tracing root to this project — a stray lockfile in a parent
+  // directory otherwise makes Next.js mis-detect the workspace root.
+  outputFileTracingRoot: __dirname,
+
   // Enable React strict mode for catching bugs early
   reactStrictMode: true,
+
+  experimental: {
+    serverActions: {
+      // Default is 1 MB — too small for product photo uploads
+      // (admin uploads up to 8 files × 5 MB, see uploadProductImagesAction)
+      bodySizeLimit: "45mb",
+    },
+  },
 
   // Security headers
   async headers() {

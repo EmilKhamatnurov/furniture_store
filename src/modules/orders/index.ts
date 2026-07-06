@@ -1,6 +1,6 @@
 export { createOrder, getOrderById, getOrdersForCustomer } from "./repository";
 export { createOrderAccessToken, verifyOrderAccessToken } from "./access";
-export type { CreateOrderInput } from "./repository";
+export type { CreateOrderInput, OrderLineInput } from "./repository";
 export {
   orderStatusLabel,
   ORDER_STATUS_LABELS,

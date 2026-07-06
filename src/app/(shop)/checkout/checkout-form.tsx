@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useCart } from "@/modules/cart";
-import { checkoutAction } from "./actions";
+import { checkoutAction, quoteShippingAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,18 +13,46 @@ import { imageUrl } from "@/lib/utils/images";
 import { ShoppingBag } from "lucide-react";
 import { urls } from "@/lib/utils/urls";
 
+interface ZoneOption {
+  id: string;
+  name: string;
+}
+
 // ---------------------------------------------------------------------------
 // CheckoutForm — full checkout page body.
 // Cart items are serialised into a hidden input (BigInt → string) so they
 // survive the FormData transport to the server action.
 // ---------------------------------------------------------------------------
-export function CheckoutForm() {
+export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
   const { items, totalCopecks } = useCart();
   const [state, action, isPending] = useActionState(checkoutAction, null);
+
+  const [shipping, setShipping] = useState<bigint | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [quotePending, startQuote] = useTransition();
 
   const cartItemsJson = JSON.stringify(
     items.map((i) => ({ ...i, priceCopecks: i.priceCopecks.toString() }))
   );
+
+  function onZoneChange(zoneId: string) {
+    setQuoteError(null);
+    if (!zoneId) {
+      setShipping(null);
+      return;
+    }
+    startQuote(async () => {
+      const res = await quoteShippingAction(zoneId, cartItemsJson);
+      if (res.shippingCopecks === null) {
+        setShipping(null);
+        setQuoteError(res.error ?? "Не удалось рассчитать доставку");
+      } else {
+        setShipping(BigInt(res.shippingCopecks));
+      }
+    });
+  }
+
+  const grandTotal = totalCopecks + (shipping ?? 0n);
 
   if (items.length === 0) {
     return (
@@ -135,6 +163,32 @@ export function CheckoutForm() {
         </section>
 
         <section className="space-y-2">
+          <Label htmlFor="zoneId">Зона доставки</Label>
+          <select
+            id="zoneId"
+            name="zoneId"
+            required
+            defaultValue=""
+            onChange={(e) => onZoneChange(e.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm h-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-invalid={!!state?.errors?.zoneId}
+          >
+            <option value="" disabled>
+              Выберите зону…
+            </option>
+            {zones.map((z) => (
+              <option key={z.id} value={z.id}>
+                {z.name}
+              </option>
+            ))}
+          </select>
+          {state?.errors?.zoneId && (
+            <p className="text-xs text-destructive">{state.errors.zoneId[0]}</p>
+          )}
+          {quoteError && <p className="text-xs text-destructive">{quoteError}</p>}
+        </section>
+
+        <section className="space-y-2">
           <Label htmlFor="note">
             Комментарий{" "}
             <span className="text-muted-foreground font-normal">(необязательно)</span>
@@ -188,16 +242,31 @@ export function CheckoutForm() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Доставка</span>
-              <span className="text-muted-foreground text-xs leading-5">уточняется</span>
+              <span className="tabular-nums">
+                {quotePending
+                  ? "рассчитываем…"
+                  : shipping === null
+                    ? <span className="text-muted-foreground text-xs leading-5">выберите зону</span>
+                    : shipping === 0n
+                      ? "Бесплатно"
+                      : formatRub(shipping)}
+              </span>
             </div>
           </div>
 
           <div className="flex justify-between font-semibold text-base pt-2 border-t border-border">
             <span>Итого</span>
-            <span className="tabular-nums">{formatRub(totalCopecks)}</span>
+            <span className="tabular-nums">
+              {shipping === null ? formatRub(totalCopecks) : formatRub(grandTotal)}
+            </span>
           </div>
 
-          <Button type="submit" size="lg" className="w-full" disabled={isPending}>
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            disabled={isPending || quotePending || shipping === null}
+          >
             {isPending ? "Оформляем…" : "Оформить заказ"}
           </Button>
 

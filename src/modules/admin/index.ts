@@ -27,6 +27,11 @@ export {
   listCategoriesAdmin,
   updateProductAdmin,
   updateVariantAdmin,
+  addProductImageAdmin,
+  deleteProductImageAdmin,
+  makePrimaryProductImageAdmin,
+  moveProductImageAdmin,
+  updateProductImageAltAdmin,
 } from "./catalog";
 export type { UpdateProductInput, UpdateVariantInput } from "./catalog";
 

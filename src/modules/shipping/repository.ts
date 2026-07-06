@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, inArray } from "drizzle-orm";
 import { shippingZones, shippingTariffs, shippingSettings } from "./db/schema";
 import type { ShippingZone, ShippingTariff } from "./db/schema";
 
@@ -113,15 +113,21 @@ async function attachTariffs(
   activeOnly: boolean
 ): Promise<ZoneWithTariffs[]> {
   if (zones.length === 0) return [];
-  const result: ZoneWithTariffs[] = [];
-  for (const zone of zones) {
-    const tariffs = await db.query.shippingTariffs.findMany({
-      where: activeOnly
-        ? and(eq(shippingTariffs.zoneId, zone.id), eq(shippingTariffs.isActive, true))
-        : eq(shippingTariffs.zoneId, zone.id),
-      orderBy: [asc(shippingTariffs.maxWeightKg)],
-    });
-    result.push({ ...zone, tariffs });
+
+  const zoneIds = zones.map((z) => z.id);
+  const tariffs = await db.query.shippingTariffs.findMany({
+    where: activeOnly
+      ? and(inArray(shippingTariffs.zoneId, zoneIds), eq(shippingTariffs.isActive, true))
+      : inArray(shippingTariffs.zoneId, zoneIds),
+    orderBy: [asc(shippingTariffs.maxWeightKg)],
+  });
+
+  const byZone = new Map<string, ShippingTariff[]>();
+  for (const t of tariffs) {
+    const list = byZone.get(t.zoneId) ?? [];
+    list.push(t);
+    byZone.set(t.zoneId, list);
   }
-  return result;
+
+  return zones.map((zone) => ({ ...zone, tariffs: byZone.get(zone.id) ?? [] }));
 }

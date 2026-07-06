@@ -15,7 +15,10 @@ export {
 } from "./db/cache";
 
 // For sitemap / admin uncached reads
-export { listAllProductSlugsForSitemap } from "./db/repository";
+export {
+  listAllProductSlugsForSitemap,
+  findSellableVariantsByIds,
+} from "./db/repository";
 
 // Domain types and pure helpers
 export type {

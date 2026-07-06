@@ -1,6 +1,7 @@
 import {
   pgTable,
   pgEnum,
+  pgSequence,
   text,
   bigint,
   integer,
@@ -8,6 +9,7 @@ import {
   uuid,
   jsonb,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { productVariants } from "@/modules/catalog/db/schema";
@@ -45,6 +47,10 @@ export const orderEventTypeEnum = pgEnum("order_event_type", [
   "refunded",
   "note_added",
 ]);
+
+// Race-safe source for the sequential part of the order number (FS-YYYY-NNNNN).
+// count(*)-based numbering is not safe under concurrent checkouts.
+export const orderNumberSeq = pgSequence("order_number_seq", { startWith: 1 });
 
 export const orders = pgTable(
   "orders",
@@ -86,6 +92,7 @@ export const orders = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (t) => [
+    uniqueIndex("orders_number_idx").on(t.number),
     index("orders_customer_idx").on(t.customerId),
     index("orders_status_idx").on(t.status),
     index("orders_created_at_idx").on(t.createdAt),
@@ -178,6 +185,8 @@ export interface ShippingAddress {
   apartment?: string;
   postalCode: string;
   region: string;
+  /** Selected delivery zone name (snapshot at order time) */
+  zoneName?: string;
 }
 
 // ---------------------------------------------------------------------------

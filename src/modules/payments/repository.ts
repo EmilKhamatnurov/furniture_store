@@ -56,37 +56,67 @@ export async function createPaymentRecord(input: {
 // processPaymentSucceeded — idempotent, called from webhook handler
 // ---------------------------------------------------------------------------
 export async function processPaymentSucceeded(
-  yukassaPaymentId: string
+  yukassaPaymentId: string,
+  /** Amount from the re-fetched (verified) YuKassa payment, in kopecks */
+  verifiedAmountCopecks?: bigint
 ): Promise<{ orderId: string; alreadyProcessed: boolean }> {
   const payment = await db.query.payments.findFirst({
     where: eq(payments.yukassaPaymentId, yukassaPaymentId),
   });
 
   if (!payment) throw new Error(`Payment not found: ${yukassaPaymentId}`);
+
+  // The money actually captured must match what we asked for — a mismatch
+  // means tampering or a YuKassa-side anomaly; never mark the order paid.
+  if (
+    verifiedAmountCopecks !== undefined &&
+    verifiedAmountCopecks !== payment.amountCopecks
+  ) {
+    throw new Error(
+      `Amount mismatch for payment ${yukassaPaymentId}: expected ${payment.amountCopecks}, YuKassa reports ${verifiedAmountCopecks}`
+    );
+  }
+
   // already processed — idempotent: report orderId but skip side effects
   if (payment.status === "succeeded") {
     return { orderId: payment.orderId, alreadyProcessed: true };
   }
 
-  await db
-    .update(payments)
-    .set({ status: "succeeded", succeededAt: sql`now()`, updatedAt: sql`now()` })
-    .where(eq(payments.yukassaPaymentId, yukassaPaymentId));
+  return await db.transaction(async (tx) => {
+    await tx
+      .update(payments)
+      .set({ status: "succeeded", succeededAt: sql`now()`, updatedAt: sql`now()` })
+      .where(eq(payments.yukassaPaymentId, yukassaPaymentId));
 
-  await db
-    .update(orders)
-    .set({ status: "paid", paidAt: sql`now()`, updatedAt: sql`now()` })
-    .where(eq(orders.id, payment.orderId));
+    // Guarded transition: only draft/pending_payment may become paid. An order
+    // cancelled/refunded by an admin must NOT silently flip back to paid.
+    const updated = await tx
+      .update(orders)
+      .set({ status: "paid", paidAt: sql`now()`, updatedAt: sql`now()` })
+      .where(
+        and(
+          eq(orders.id, payment.orderId),
+          inArray(orders.status, ["draft", "pending_payment"])
+        )
+      )
+      .returning({ id: orders.id });
 
-  await db.insert(orderEvents).values({
-    orderId: payment.orderId,
-    eventType: "payment_received",
-    actorType: "system",
-    actorId: "webhook:yukassa",
-    payload: { yukassaPaymentId },
+    const transitioned = updated.length > 0;
+
+    // Record the money arrival either way — if the order was already in a
+    // terminal state this is a conflict an admin must resolve (refund).
+    await tx.insert(orderEvents).values({
+      orderId: payment.orderId,
+      eventType: "payment_received",
+      actorType: "system",
+      actorId: "webhook:yukassa",
+      payload: transitioned
+        ? { yukassaPaymentId }
+        : { yukassaPaymentId, conflict: "order_not_payable" },
+    });
+
+    return { orderId: payment.orderId, alreadyProcessed: !transitioned };
   });
-
-  return { orderId: payment.orderId, alreadyProcessed: false };
 }
 
 // ---------------------------------------------------------------------------

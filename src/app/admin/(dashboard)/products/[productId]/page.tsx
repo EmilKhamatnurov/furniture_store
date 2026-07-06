@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { getProductAdmin, listCategoriesAdmin } from "@/modules/admin";
 import { ProductForm } from "./product-form";
 import { VariantForm } from "./variant-form";
+import { ProductImages } from "./product-images";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,20 @@ export default async function AdminProductEditPage({ params }: PageProps) {
           isActive={product.isActive}
           isArchived={product.isArchived}
           categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        />
+      </section>
+
+      <section className="rounded-lg border border-border bg-background p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+          Фотографии ({product.images.length})
+        </h2>
+        <ProductImages
+          productId={product.id}
+          images={product.images.map((img) => ({
+            id: img.id,
+            s3Key: img.s3Key,
+            altText: img.altText,
+          }))}
         />
       </section>
 

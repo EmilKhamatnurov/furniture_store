@@ -5,6 +5,7 @@ import {
   processPaymentCancelled,
   recordWebhookEvent,
   markWebhookProcessed,
+  yukassaValueToCopecks,
 } from "@/modules/payments";
 import { sendPaymentReceivedEmails } from "@/modules/email";
 
@@ -56,9 +57,11 @@ export async function POST(req: NextRequest) {
   // mark an order paid without paying.
   let signatureValid: "yes" | "no" = "no";
   let verifiedStatus: string | null = null;
+  let verifiedAmountCopecks: bigint | undefined;
   try {
     const verified = await fetchYukassaPayment(yukassaPaymentId);
     verifiedStatus = verified.status;
+    verifiedAmountCopecks = yukassaValueToCopecks(verified.amount.value);
     signatureValid = "yes";
   } catch (err) {
     console.warn("[webhook] Could not verify payment with YuKassa:", err);
@@ -98,7 +101,7 @@ export async function POST(req: NextRequest) {
   try {
     if (verifiedStatus === "succeeded") {
       const { orderId, alreadyProcessed } =
-        await processPaymentSucceeded(yukassaPaymentId);
+        await processPaymentSucceeded(yukassaPaymentId, verifiedAmountCopecks);
       // Fire confirmation + admin emails only on the first transition to paid
       if (!alreadyProcessed) {
         await sendPaymentReceivedEmails(orderId);

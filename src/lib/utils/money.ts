@@ -4,14 +4,19 @@
 // Conversion to rubles happens ONLY at the UI render boundary.
 // ---------------------------------------------------------------------------
 
-/** Format kopecks as a human-readable RUB string: 150000n → "1 500 ₽" */
+/**
+ * Format kopecks as a human-readable RUB string: 150000n → "1 500 ₽".
+ * Whole-ruble amounts show no decimals; otherwise exactly 2 ("999,50 ₽",
+ * never "999,5 ₽").
+ */
 export function formatRub(kopecks: bigint): string {
   const rubles = Number(kopecks) / 100;
+  const fractionDigits = kopecks % 100n === 0n ? 0 : 2;
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
     currency: "RUB",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(rubles);
 }
 

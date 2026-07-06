@@ -3,11 +3,13 @@ import { inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { productVariants } from "@/modules/catalog/db/schema";
 import {
+  lineChargeableKg,
   totalChargeableKg,
   computeShippingCopecks,
   type ItemDimensions,
 } from "./calculate";
 import { getZoneWithTariffs, getVolumetricDivisor } from "./repository";
+import { logger } from "@/lib/logger";
 
 // ---------------------------------------------------------------------------
 // quoteShipping — authoritative server-side shipping price for a cart + zone.
@@ -52,15 +54,32 @@ export async function quoteShipping(
   const dims: ItemDimensions[] = [];
   for (const item of items) {
     const v = byId.get(item.variantId);
-    if (!v) continue; // variant gone — skip (its price still in subtotal)
+    if (!v) {
+      // Variant gone — refuse to quote rather than silently undercharge
+      logger.warn(
+        { variantId: item.variantId, zoneId },
+        "[shipping] cart references a missing variant — cannot quote"
+      );
+      return { zoneId, zoneName: zone.name, totalKg: 0, shippingCopecks: null };
+    }
     const p = v.product;
-    dims.push({
+    const d: ItemDimensions = {
       lengthCm: v.lengthCm ?? p.lengthCm,
       widthCm: v.widthCm ?? p.widthCm,
       heightCm: v.heightCm ?? p.heightCm,
       weightGrams: v.weightGrams ?? p.weightGrams,
-      quantity: item.quantity,
-    });
+      quantity: Math.max(1, item.quantity),
+    };
+    // No weight AND no volume means the admin never filled the dimensions in —
+    // quoting would always hit the cheapest bracket and undercharge furniture.
+    if (lineChargeableKg(d, divisor) <= 0) {
+      logger.warn(
+        { variantId: item.variantId, productId: p.id },
+        "[shipping] product has no dimensions/weight — cannot quote"
+      );
+      return { zoneId, zoneName: zone.name, totalKg: 0, shippingCopecks: null };
+    }
+    dims.push(d);
   }
 
   const totalKg = totalChargeableKg(dims, divisor);

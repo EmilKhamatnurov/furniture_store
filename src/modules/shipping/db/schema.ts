@@ -7,7 +7,6 @@ import {
   timestamp,
   uuid,
   index,
-  real,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 

@@ -21,6 +21,12 @@ function copecksToValue(copecks: bigint): string {
   return `${rubles}.${String(cents).padStart(2, "0")}`;
 }
 
+/** Parse a YuKassa "XXXX.XX" amount value back into kopecks (bigint) */
+export function yukassaValueToCopecks(value: string): bigint {
+  const [rub = "0", kop = ""] = value.split(".");
+  return BigInt(rub) * 100n + BigInt((kop + "00").slice(0, 2) || "0");
+}
+
 // ---------------------------------------------------------------------------
 // Shared types
 // ---------------------------------------------------------------------------

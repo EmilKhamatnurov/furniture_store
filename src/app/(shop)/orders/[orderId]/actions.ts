@@ -9,6 +9,7 @@ import {
   createPaymentRecord,
   getActivePaymentForOrder,
 } from "@/modules/payments";
+import { canAccessOrder } from "./authorize";
 
 // ---------------------------------------------------------------------------
 // initiatePaymentAction
@@ -38,9 +39,22 @@ export async function initiatePaymentAction(
     return { error: "Заказ не найден." };
   }
 
-  // If order is already paid — nothing to do
-  if (order.status === "paid") {
-    return { error: "Заказ уже оплачен." };
+  // Same authorization as the order page: capability token or logged-in owner.
+  // Without this, anyone who guesses an order id could initiate payments.
+  const token = formData.get("t");
+  const allowed = await canAccessOrder(
+    orderId,
+    typeof token === "string" ? token : null,
+    order.customerId,
+    order.email
+  );
+  if (!allowed) {
+    return { error: "Нет доступа к этому заказу." };
+  }
+
+  // Payment can only be initiated while the order is awaiting it
+  if (order.status !== "draft" && order.status !== "pending_payment") {
+    return { error: "Этот заказ нельзя оплатить: он уже оплачен или отменён." };
   }
 
   // Check for an existing active payment → reuse its confirmation URL

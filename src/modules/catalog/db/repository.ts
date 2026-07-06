@@ -139,6 +139,23 @@ export async function findCategoryBySlug(slug: string) {
   });
 }
 
+/**
+ * Active variants (with their product) by id — the authoritative source for
+ * re-pricing a client cart at checkout. Variants whose product is inactive
+ * or archived are excluded, so a missing id means "not sellable anymore".
+ */
+export async function findSellableVariantsByIds(ids: string[]) {
+  if (ids.length === 0) return [];
+  const rows = await db.query.productVariants.findMany({
+    where: and(
+      inArray(productVariants.id, ids),
+      eq(productVariants.isActive, true)
+    ),
+    with: { product: true },
+  });
+  return rows.filter((v) => v.product.isActive && !v.product.isArchived);
+}
+
 /** All product slugs grouped by category slug — for sitemap generation */
 export async function listAllProductSlugsForSitemap(): Promise<
   Array<{

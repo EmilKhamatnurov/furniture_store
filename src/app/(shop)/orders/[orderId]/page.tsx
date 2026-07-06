@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/button";
 import { formatRub } from "@/lib/utils/money";
 import { CartClearer } from "./cart-clearer";
 import { PayButton } from "./pay-button";
-import { verifyOrderAccessToken } from "@/modules/orders";
-import { getCurrentCustomer } from "@/modules/customers";
+import { canAccessOrder } from "./authorize";
 import type { OrderStatus } from "@/modules/orders/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -19,23 +18,6 @@ export const dynamic = "force-dynamic";
 interface PageProps {
   params: Promise<{ orderId: string }>;
   searchParams: Promise<{ t?: string }>;
-}
-
-// Authorize access to an order that contains PII (152-FZ): allow either a valid
-// capability token (from checkout redirect / email link) OR the logged-in owner.
-async function canViewOrder(
-  orderId: string,
-  token: string | undefined,
-  ownerCustomerId: string | null,
-  ownerEmail: string
-): Promise<boolean> {
-  if (verifyOrderAccessToken(orderId, token)) return true;
-  const customer = await getCurrentCustomer();
-  if (!customer) return false;
-  return (
-    (ownerCustomerId !== null && ownerCustomerId === customer.id) ||
-    ownerEmail.toLowerCase() === customer.email.toLowerCase()
-  );
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -63,7 +45,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
 
   // Hide PII behind a capability token or order ownership; otherwise 404
   // (don't reveal that the order exists).
-  const allowed = await canViewOrder(orderId, t, order.customerId, order.email);
+  const allowed = await canAccessOrder(orderId, t, order.customerId, order.email);
   if (!allowed) notFound();
 
   const addr = order.shippingAddress;
@@ -109,7 +91,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
           {/* Pay button — shown for draft and pending_payment orders */}
           {(order.status === "draft" || order.status === "pending_payment") && (
             <div className="mb-8">
-              <PayButton orderId={orderId} />
+              <PayButton orderId={orderId} accessToken={t} />
               {order.status === "pending_payment" && (
                 <p className="text-xs text-muted-foreground text-center mt-2">
                   Платёж ожидает подтверждения. Если он не завершился, нажмите ещё раз.

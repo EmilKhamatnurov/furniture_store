@@ -46,3 +46,6 @@ Thumbs.db
 
 # Docker
 .dockerignore
+
+# Dev image uploads (local S3 fallback)
+public/uploads/

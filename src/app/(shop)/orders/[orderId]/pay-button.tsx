@@ -13,14 +13,17 @@ import { initiatePaymentAction } from "./actions";
 
 interface PayButtonProps {
   orderId: string;
+  /** Capability token from the page URL — forwarded so the action can authorize */
+  accessToken?: string | undefined;
 }
 
-export function PayButton({ orderId }: PayButtonProps) {
+export function PayButton({ orderId, accessToken }: PayButtonProps) {
   const [state, action, isPending] = useActionState(initiatePaymentAction, null);
 
   return (
     <form action={action} className="space-y-3">
       <input type="hidden" name="orderId" value={orderId} />
+      {accessToken && <input type="hidden" name="t" value={accessToken} />}
 
       {state?.error && (
         <p className="text-sm text-destructive text-center">{state.error}</p>

@@ -10,14 +10,18 @@ config({ path: ".env.local" });
 // IMPORTANT: db must be imported AFTER dotenv.config() so DATABASE_URL is set.
 // Top-level import would be hoisted before config() runs — use require() here
 // to defer module evaluation.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { db, closeDb } = require("@/lib/db/script") as typeof import("@/lib/db/script");
 const {
   categories,
   products,
   productVariants,
-  productImages,
   pages,
   blogPosts,
+  shippingZones,
+  shippingTariffs,
+  shippingSettings,
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
 } = require("@/lib/db/schema") as typeof import("@/lib/db/schema");
 
 // Stable UUIDs so re-runs are idempotent (we use ON CONFLICT DO NOTHING)
@@ -250,20 +254,9 @@ async function seed() {
     const { variants, ...productRow } = p;
     await db.insert(products).values(productRow).onConflictDoNothing();
 
-    // Insert one placeholder image per product (admin will replace later)
-    await db
-      .insert(productImages)
-      .values([
-        {
-          id: `${p.id.slice(0, -1)}A`,
-          productId: p.id,
-          // Empty s3Key triggers placeholder.svg fallback in imageUrl()
-          s3Key: "",
-          altText: p.name,
-          sortOrder: 0,
-        },
-      ])
-      .onConflictDoNothing();
+    // No images are seeded — the storefront falls back to placeholder.svg when
+    // a product has zero images (see ProductGallery). Real photos are uploaded
+    // via the admin panel.
 
     for (let i = 0; i < variants.length; i++) {
       const v = variants[i]!;
@@ -406,6 +399,59 @@ async function seed() {
       .onConflictDoNothing();
   }
   console.log(`✓ ${posts.length} blog posts seeded`);
+
+  // -------------------------------------------------------------------------
+  // Shipping — zones, tariff brackets, volumetric divisor
+  // -------------------------------------------------------------------------
+  const ZONE_MSK = "55555555-0000-0000-0000-000000000001";
+  const ZONE_MO50 = "55555555-0000-0000-0000-000000000002";
+  const ZONE_MO100 = "55555555-0000-0000-0000-000000000003";
+
+  await db
+    .insert(shippingZones)
+    .values([
+      { id: ZONE_MSK, name: "Москва (в пределах МКАД)", sortOrder: 10, isActive: true },
+      { id: ZONE_MO50, name: "Московская область до 50 км", sortOrder: 20, isActive: true },
+      { id: ZONE_MO100, name: "Московская область 50–100 км", sortOrder: 30, isActive: true },
+    ])
+    .onConflictDoNothing();
+
+  // [zoneId, idSuffix, maxWeightKg, priceCopecks, extraPerKgCopecks]
+  const tariffRows: Array<[string, string, number, bigint, bigint]> = [
+    [ZONE_MSK, "11", 10, 50000n, 0n],
+    [ZONE_MSK, "12", 30, 90000n, 0n],
+    [ZONE_MSK, "13", 80, 150000n, 2000n],
+    [ZONE_MO50, "21", 10, 90000n, 0n],
+    [ZONE_MO50, "22", 30, 150000n, 0n],
+    [ZONE_MO50, "23", 80, 250000n, 3000n],
+    [ZONE_MO100, "31", 10, 150000n, 0n],
+    [ZONE_MO100, "32", 30, 250000n, 0n],
+    [ZONE_MO100, "33", 80, 400000n, 4000n],
+  ];
+  await db
+    .insert(shippingTariffs)
+    .values(
+      tariffRows.map(([zoneId, sfx, maxWeightKg, priceCopecks, extraPerKgCopecks]) => ({
+        id: `55555555-0000-0000-0000-0000000001${sfx}`,
+        zoneId,
+        maxWeightKg,
+        priceCopecks,
+        extraPerKgCopecks,
+        isActive: true,
+      }))
+    )
+    .onConflictDoNothing();
+
+  await db
+    .insert(shippingSettings)
+    .values({
+      id: "55555555-0000-0000-0000-0000000000ff",
+      key: "volumetric_divisor",
+      value: "5000",
+    })
+    .onConflictDoNothing();
+
+  console.log("✓ Shipping zones, tariffs, divisor seeded");
 
   console.log("✅ Done");
 }

@@ -66,8 +66,9 @@ Catalog reads go through `modules/catalog/db/cache.ts`: cache miss → DB → ca
 - Redis must run with `noeviction` (BullMQ requirement).
 
 ### Data snapshots & state machines
-- Order placement snapshots data: `order_items` duplicate name/price/SKU; shipping address is a jsonb snapshot — independent of the live catalog.
-- Order status is a validated state machine (`draft → pending_payment → paid → assembling → shipped → delivered → completed`; terminal: `cancelled`, `refunded`). Transitions are validated and append to the immutable `order_events` audit log (`modules/orders/status.ts`). Payment webhooks are idempotent (unique `idempotency_key`, deduped by `external_event_id`).
+- Order placement snapshots data: `order_items` duplicate name/price/SKU; shipping address is a jsonb snapshot — independent of the live catalog. **All snapshots (prices, names, SKU) are re-read from the DB at checkout — never trust client-supplied cart data** (client sends only `variantId` + `quantity`, see `parseCartLines` in `(shop)/checkout/schema.ts`).
+- Order status is a state machine (`draft → pending_payment → paid → assembling → shipped → delivered → completed`; terminal: `cancelled`, `refunded`). Admin transitions are validated in `modules/admin/orders.ts` (`allowedTransitions`); the payment webhook only advances `draft`/`pending_payment` → `paid` (guarded SQL update). All transitions append to the immutable `order_events` audit log; `modules/orders/status.ts` holds presentation labels only. Payment webhooks are idempotent (unique `idempotency_key`, deduped by `external_event_id`) and verify the captured amount against the payment record.
+- Order numbers (`FS-YYYY-NNNNN`) come from the `order_number_seq` Postgres sequence; `createOrder` runs in a single transaction.
 
 ### Auth (two separate systems)
 - **Customer** (`modules/auth`): Node `scrypt` passwords (no native deps), stateless sessions via an HMAC-SHA256-signed cookie over `APP_SECRET` (no session table). Protected `/account/*` guarded in its layout.

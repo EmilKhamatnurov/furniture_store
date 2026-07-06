@@ -2,23 +2,35 @@ import { describe, it, expect } from "vitest";
 import {
   formatRub,
   rubToKopecks,
-  kopecksToRubFloat,
   multiplyKopecks,
   asKopecks,
 } from "@/lib/utils/money";
 
+/**
+ * Intl.NumberFormat("ru-RU") uses non-breaking spaces, and the exact kind
+ * (U+00A0 vs U+202F) differs between Node/ICU versions. Normalize all space
+ * variants to a plain space so tests don't depend on the ICU build.
+ */
+function norm(s: string): string {
+  return s.replace(/[   ]/g, " ");
+}
+
 describe("money utilities", () => {
   describe("formatRub", () => {
     it("formats whole rubles without decimals", () => {
-      expect(formatRub(150000n)).toBe("1 500 ₽");
+      expect(norm(formatRub(150000n))).toBe("1 500 ₽");
     });
 
-    it("formats kopecks with 2 decimal places", () => {
-      expect(formatRub(99950n)).toBe("999,50 ₽");
+    it("formats kopecks with exactly 2 decimal places", () => {
+      expect(norm(formatRub(99950n))).toBe("999,50 ₽");
+    });
+
+    it("formats a single kopeck with 2 decimal places", () => {
+      expect(norm(formatRub(1n))).toBe("0,01 ₽");
     });
 
     it("formats zero", () => {
-      expect(formatRub(0n)).toBe("0 ₽");
+      expect(norm(formatRub(0n))).toBe("0 ₽");
     });
   });
 
