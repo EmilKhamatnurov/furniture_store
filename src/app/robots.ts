@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
           "/account/",
           "/cart/",
           "/checkout/",
+          "/orders/",
           "/_next/",
           // Avoid indexing query-string variants
           "/*?*",

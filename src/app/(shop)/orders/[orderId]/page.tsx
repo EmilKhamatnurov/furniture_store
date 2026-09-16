@@ -125,9 +125,21 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
                 </li>
               ))}
             </ul>
-            <div className="px-5 py-4 border-t border-border flex justify-between font-semibold">
-              <span>Итого</span>
-              <span className="tabular-nums">{formatRub(order.totalCopecks)}</span>
+            <div className="px-5 py-4 border-t border-border space-y-1.5">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Товары</span>
+                <span className="tabular-nums">{formatRub(order.subtotalCopecks)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Доставка{addr.zoneName ? ` · ${addr.zoneName}` : ""}</span>
+                <span className="tabular-nums">
+                  {order.shippingCopecks > 0n ? formatRub(order.shippingCopecks) : "Бесплатно"}
+                </span>
+              </div>
+              <div className="flex justify-between font-semibold pt-1.5 border-t border-border">
+                <span>Итого</span>
+                <span className="tabular-nums">{formatRub(order.totalCopecks)}</span>
+              </div>
             </div>
           </div>
 

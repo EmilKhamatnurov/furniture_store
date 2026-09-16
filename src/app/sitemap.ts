@@ -4,6 +4,7 @@ import {
   listAllProductSlugsForSitemap,
 } from "@/modules/catalog";
 import { listPublishedPostSlugs, listPublishedPageSlugs } from "@/modules/cms";
+import { imageUrl } from "@/lib/utils/images";
 import { absoluteUrl } from "@/lib/utils/urls";
 import { urls } from "@/lib/utils/urls";
 
@@ -65,12 +66,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.4,
   }));
 
-  // Published blog posts
+  // Published blog posts (with cover image for the image sitemap)
   const postEntries: MetadataRoute.Sitemap = postLinks.map((p) => ({
     url: absoluteUrl(urls.blogPost(p.slug)),
     lastModified: p.updatedAt,
     changeFrequency: "monthly",
     priority: 0.5,
+    ...(p.coverImageKey
+      ? { images: [absoluteUrl(imageUrl(p.coverImageKey))] }
+      : {}),
   }));
 
   const categoryEntries: MetadataRoute.Sitemap = categories.map((cat) => ({

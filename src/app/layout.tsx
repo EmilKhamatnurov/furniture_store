@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/modules/cart";
+import { YandexMetrika } from "@/components/analytics/metrika";
 
 // ---------------------------------------------------------------------------
 // Fonts — Playfair Display (serif display) + DM Sans (UI/body).
@@ -46,6 +47,15 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     siteName: "KHAMATNUROV MEBEL",
   },
+  // Search-console ownership verification (fill values in env when registering)
+  verification: {
+    ...(process.env["YANDEX_VERIFICATION"]
+      ? { yandex: process.env["YANDEX_VERIFICATION"] }
+      : {}),
+    ...(process.env["GOOGLE_SITE_VERIFICATION"]
+      ? { google: process.env["GOOGLE_SITE_VERIFICATION"] }
+      : {}),
+  },
 };
 
 export default function RootLayout({
@@ -60,6 +70,7 @@ export default function RootLayout({
       className={`${playfair.variable} ${dmSans.variable}`}
     >
       <body className="font-sans antialiased">
+        <YandexMetrika />
         <CartProvider>{children}</CartProvider>
       </body>
     </html>

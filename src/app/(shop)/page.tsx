@@ -9,8 +9,15 @@ import {
   getProductsByCategorySlug,
   type ProductWithRelations,
 } from "@/modules/catalog";
+import { listPublishedPosts } from "@/modules/cms";
 import { imageUrl } from "@/lib/utils/images";
 import { urls } from "@/lib/utils/urls";
+
+const blogDateFmt = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
 // Rendered per request — reads live catalog data (Redis-cached underneath).
 // force-dynamic keeps the Docker build DB-independent (no build-time prerender).
@@ -39,6 +46,8 @@ export default async function HomePage() {
     const all = await getProductsByCategorySlug(firstCategory.slug);
     featured = all.slice(0, 8);
   }
+
+  const latestPosts = (await listPublishedPosts()).slice(0, 3);
 
   return (
     <>
@@ -164,6 +173,64 @@ export default async function HomePage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {featured.map((p) => (
                 <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </Container>
+        </section>
+      )}
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Latest blog posts — fresh content + internal links to the blog    */}
+      {/* ----------------------------------------------------------------- */}
+      {latestPosts.length > 0 && (
+        <section className="py-16 md:py-20 border-t border-border">
+          <Container>
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <p className="eyebrow mb-2">Журнал</p>
+                <h2 className="font-serif text-3xl md:text-4xl font-semibold tracking-tight">
+                  Из блога
+                </h2>
+              </div>
+              <Link
+                href={urls.blog()}
+                className="text-sm font-medium hover:text-muted-foreground transition-colors whitespace-nowrap"
+              >
+                Все статьи →
+              </Link>
+            </div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {latestPosts.map((post) => (
+                <Link
+                  key={post.slug}
+                  href={urls.blogPost(post.slug)}
+                  className="group flex flex-col overflow-hidden rounded-lg border border-border hover:border-foreground/20 transition-colors"
+                >
+                  <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+                    <Image
+                      src={imageUrl(post.coverImageKey)}
+                      alt={post.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col p-5">
+                    {post.publishedAt && (
+                      <time className="text-xs text-muted-foreground">
+                        {blogDateFmt.format(post.publishedAt)}
+                      </time>
+                    )}
+                    <h3 className="font-serif text-lg font-semibold mt-1 group-hover:text-primary transition-colors">
+                      {post.title}
+                    </h3>
+                    {post.excerpt && (
+                      <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                        {post.excerpt}
+                      </p>
+                    )}
+                  </div>
+                </Link>
               ))}
             </div>
           </Container>

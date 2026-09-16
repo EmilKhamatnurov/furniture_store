@@ -4,7 +4,7 @@ import Image from "next/image";
 import { listPublishedPosts } from "@/modules/cms";
 import { Container } from "@/components/ui/container";
 import { imageUrl } from "@/lib/utils/images";
-import { urls } from "@/lib/utils/urls";
+import { absoluteUrl, urls } from "@/lib/utils/urls";
 
 // Rendered per request — keeps the Docker build DB-independent.
 export const dynamic = "force-dynamic";
@@ -12,8 +12,17 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Блог",
   description:
-    "Статьи о мебели, материалах, уходе и обустройстве дома от Мебельной мастерской.",
-  alternates: { canonical: urls.blog() },
+    "Статьи о мебели, материалах, уходе и обустройстве дома от KHAMATNUROV MEBEL.",
+  alternates: {
+    canonical: urls.blog(),
+    types: { "application/rss+xml": absoluteUrl("/blog/rss.xml") },
+  },
+  openGraph: {
+    title: "Блог — KHAMATNUROV MEBEL",
+    description: "Статьи о мебели, материалах и обустройстве дома.",
+    url: absoluteUrl(urls.blog()),
+    type: "website",
+  },
 };
 
 const dateFmt = new Intl.DateTimeFormat("ru-RU", {

@@ -4,6 +4,8 @@ export {
   getPublishedPageBySlug,
   listPublishedPosts,
   getPublishedPostBySlug,
+  getRelatedPosts,
+  getAuthorName,
   listPublishedPostSlugs,
   listPublishedPageSlugs,
 } from "./repository";

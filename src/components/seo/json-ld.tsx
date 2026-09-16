@@ -37,6 +37,19 @@ export async function JsonLd({ data }: JsonLdProps) {
 // ---------------------------------------------------------------------------
 
 const ORGANIZATION_NAME = "KHAMATNUROV MEBEL";
+const LOGO_URL = absoluteUrl("/icon.svg");
+// Social profiles — fill in as they appear (helps entity recognition / Knowledge Panel)
+const SAME_AS: string[] = [];
+
+/** Reusable Organization node, referenced as publisher by Article schema. */
+function organizationNode() {
+  return {
+    "@type": "Organization",
+    name: ORGANIZATION_NAME,
+    url: absoluteUrl("/"),
+    logo: { "@type": "ImageObject", url: LOGO_URL },
+  };
+}
 
 interface BreadcrumbItem {
   name: string;
@@ -62,8 +75,47 @@ export function buildOrganization() {
     "@type": "Organization",
     name: ORGANIZATION_NAME,
     url: absoluteUrl("/"),
-    logo: absoluteUrl("/logo.svg"),
-    sameAs: [],
+    logo: { "@type": "ImageObject", url: LOGO_URL },
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "RU",
+      addressLocality: "Москва",
+    },
+    ...(SAME_AS.length > 0 ? { sameAs: SAME_AS } : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Article — for blog posts. Rich result eligibility (author, publisher, image,
+// dates) helps Google/Yandex surface the post with metadata in search.
+// ---------------------------------------------------------------------------
+interface ArticleInput {
+  title: string;
+  description?: string | undefined;
+  url: string;
+  imageUrl?: string | undefined;
+  authorName: string;
+  publishedAt?: Date | null | undefined;
+  modifiedAt: Date;
+  wordCount?: number | undefined;
+  section?: string | undefined;
+}
+
+export function buildArticle(a: ArticleInput) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: a.title.slice(0, 110), // Google truncates headlines past ~110
+    ...(a.description ? { description: a.description } : {}),
+    ...(a.imageUrl ? { image: [a.imageUrl] } : {}),
+    inLanguage: "ru-RU",
+    author: { "@type": "Person", name: a.authorName },
+    publisher: organizationNode(),
+    ...(a.publishedAt ? { datePublished: a.publishedAt.toISOString() } : {}),
+    dateModified: a.modifiedAt.toISOString(),
+    ...(a.wordCount ? { wordCount: a.wordCount } : {}),
+    ...(a.section ? { articleSection: a.section } : {}),
+    mainEntityOfPage: { "@type": "WebPage", "@id": absoluteUrl(a.url) },
   };
 }
 

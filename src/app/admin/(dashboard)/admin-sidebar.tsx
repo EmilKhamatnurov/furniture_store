@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   CreditCard,
   FileText,
+  Truck,
   LogOut,
   ExternalLink,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const links = [
   { href: "/admin/orders", label: "Заказы", icon: ShoppingCart, exact: false },
   { href: "/admin/products", label: "Товары", icon: Package, exact: false },
   { href: "/admin/payments", label: "Платежи", icon: CreditCard, exact: false },
+  { href: "/admin/shipping", label: "Доставка", icon: Truck, exact: false },
   { href: "/admin/content", label: "Контент", icon: FileText, exact: false },
 ];
 

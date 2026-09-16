@@ -94,9 +94,24 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
                 </li>
               ))}
             </ul>
-            <div className="flex justify-between border-t border-border pt-3 mt-1 font-semibold">
-              <span>Итого</span>
-              <span className="tabular-nums">{formatRub(order.totalCopecks)}</span>
+            <div className="border-t border-border pt-3 mt-1 space-y-1.5">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Товары</span>
+                <span className="tabular-nums">{formatRub(order.subtotalCopecks)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>
+                  Доставка
+                  {order.shippingAddress.zoneName ? ` · ${order.shippingAddress.zoneName}` : ""}
+                </span>
+                <span className="tabular-nums">
+                  {order.shippingCopecks > 0n ? formatRub(order.shippingCopecks) : "Бесплатно"}
+                </span>
+              </div>
+              <div className="flex justify-between font-semibold pt-1.5 border-t border-border">
+                <span>Итого</span>
+                <span className="tabular-nums">{formatRub(order.totalCopecks)}</span>
+              </div>
             </div>
           </Section>
 
