@@ -21,7 +21,7 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
   // Fallback to placeholder when no images uploaded yet
   if (images.length === 0) {
     return (
-      <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
         <Image
           src={imageUrl(null)}
           alt={productName}
@@ -35,16 +35,22 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
   }
 
   const active = images[activeIdx] ?? images[0]!;
+  const usesSourceCardImage = active.s3Key.startsWith(
+    "catalog/source-2026-09-18/"
+  );
 
   return (
     <div className="space-y-4">
-      <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
         <Image
           src={imageUrl(active.s3Key)}
           alt={active.altText ?? productName}
           fill
           sizes="(min-width: 1024px) 50vw, 100vw"
-          className="object-cover"
+          className={cn(
+            "object-cover",
+            usesSourceCardImage && "origin-top scale-[1.42]"
+          )}
           priority
         />
       </div>
@@ -59,9 +65,9 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
               aria-label={`Показать изображение ${i + 1}`}
               aria-current={i === activeIdx}
               className={cn(
-                "relative aspect-square overflow-hidden rounded-md bg-muted transition-all",
+                "relative aspect-square overflow-hidden bg-muted transition-all",
                 i === activeIdx
-                  ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                  ? "ring-1 ring-pine ring-offset-2 ring-offset-background"
                   : "opacity-70 hover:opacity-100"
               )}
             >

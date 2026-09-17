@@ -57,18 +57,19 @@ export default async function CategoryPage({ params }: PageProps) {
       <JsonLd data={buildBreadcrumbList(breadcrumbs)} />
 
       <Container>
-        <div className="py-8 md:py-12">
-          <Breadcrumbs items={breadcrumbs} className="mb-6" />
+        <div className="py-10 md:py-16">
+          <Breadcrumbs items={breadcrumbs} className="mb-10" />
 
-          <header className="mb-10">
-            <h1 className="font-serif text-4xl md:text-5xl font-semibold tracking-tight">
+          <header className="mb-14 border-b border-border pb-10">
+            <p className="eyebrow mb-4 text-pine">Категория / demo</p>
+            <h1 className="display-title text-5xl md:text-7xl">
               {category.name}
             </h1>
-            <p className="eyebrow mt-3">
+            <p className="eyebrow mt-6">
               {products.length} {pluralizeProducts(products.length)}
             </p>
             {category.description && (
-              <p className="text-muted-foreground text-lg max-w-2xl mt-4">
+              <p className="text-muted-foreground text-base leading-7 md:text-lg max-w-2xl mt-4">
                 {category.description}
               </p>
             )}
@@ -79,7 +80,7 @@ export default async function CategoryPage({ params }: PageProps) {
               В этой категории пока нет товаров.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10">
+            <div className="grid grid-cols-1 gap-x-5 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {products.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

@@ -25,7 +25,9 @@ export {
   listAllProductsAdmin,
   getProductAdmin,
   listCategoriesAdmin,
+  createProductAdmin,
   updateProductAdmin,
+  createVariantAdmin,
   updateVariantAdmin,
   addProductImageAdmin,
   deleteProductImageAdmin,
@@ -33,7 +35,12 @@ export {
   moveProductImageAdmin,
   updateProductImageAltAdmin,
 } from "./catalog";
-export type { UpdateProductInput, UpdateVariantInput } from "./catalog";
+export type {
+  CreateProductInput,
+  UpdateProductInput,
+  CreateVariantInput,
+  UpdateVariantInput,
+} from "./catalog";
 
 // Payments
 export { listPayments } from "./payments";

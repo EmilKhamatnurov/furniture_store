@@ -33,14 +33,15 @@ export default async function CatalogIndexPage() {
       <JsonLd data={buildBreadcrumbList(breadcrumbs)} />
 
       <Container>
-        <div className="py-8 md:py-12">
-          <Breadcrumbs items={breadcrumbs} className="mb-6" />
+        <div className="py-10 md:py-16">
+          <Breadcrumbs items={breadcrumbs} className="mb-10" />
 
-          <h1 className="font-serif text-4xl md:text-5xl font-semibold tracking-tight mb-4">
+          <p className="eyebrow mb-4 text-pine">Коллекция / demo</p>
+          <h1 className="display-title text-5xl md:text-7xl mb-5">
             Каталог
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mb-12">
-            Все категории нашей мебели. Выберите раздел, чтобы увидеть товары.
+          <p className="text-muted-foreground text-base leading-7 md:text-lg max-w-xl mb-14">
+            Тестовые категории будущей витрины. Выберите предмет, чтобы посмотреть доступные модели.
           </p>
 
           {categories.length === 0 ? (
@@ -48,15 +49,15 @@ export default async function CatalogIndexPage() {
               Каталог пока пуст. Скоро мы добавим товары.
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {categories.map((cat) => (
+            <div className="grid grid-cols-1 gap-x-5 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+              {categories.map((cat, index) => (
                 <Link
                   key={cat.id}
                   href={urls.category(cat.slug)}
                   className="group block"
                 >
-                  <article className="space-y-3">
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-muted">
+                  <article>
+                    <div className={`relative overflow-hidden bg-muted ${index % 3 === 1 ? "aspect-[5/4]" : "aspect-[4/5]"}`}>
                       <Image
                         src={imageUrl(cat.imageKey)}
                         alt={cat.name}
@@ -65,11 +66,11 @@ export default async function CatalogIndexPage() {
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
-                    <div>
-                      <h2 className="text-xl font-medium group-hover:text-primary transition-colors">
+                    <div className="mt-4 flex items-baseline justify-between gap-4 border-t border-border pt-3">
+                      <h2 className="font-serif text-2xl font-normal group-hover:text-pine transition-colors">
                         {cat.name}
                       </h2>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="shrink-0 text-xs text-muted-foreground">
                         {cat.productCount}{" "}
                         {pluralizeProducts(cat.productCount)}
                       </p>

@@ -79,7 +79,7 @@ export function buildOrganization() {
     address: {
       "@type": "PostalAddress",
       addressCountry: "RU",
-      addressLocality: "Москва",
+      addressLocality: "Уфа",
     },
     ...(SAME_AS.length > 0 ? { sameAs: SAME_AS } : {}),
   };

@@ -16,6 +16,9 @@ interface ProductCardProps {
 // ---------------------------------------------------------------------------
 export function ProductCard({ product }: ProductCardProps) {
   const primaryImage = product.images[0];
+  const usesSourceCardImage = primaryImage?.s3Key.startsWith(
+    "catalog/source-2026-09-18/"
+  );
   const minPrice = getMinVariantPrice(product);
   const inStock = isProductInStock(product);
   const hasMultiplePrices =
@@ -30,25 +33,29 @@ export function ProductCard({ product }: ProductCardProps) {
       href={urls.product(product.category.slug, product.slug)}
       className="group block"
     >
-      <article className="space-y-3.5">
-        <div className="relative aspect-square overflow-hidden rounded-md bg-secondary">
+      <article className="space-y-4">
+        <div className="relative aspect-[4/5] overflow-hidden bg-secondary">
           <Image
             src={imageUrl(primaryImage?.s3Key)}
             alt={primaryImage?.altText ?? product.name}
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            className={
+              usesSourceCardImage
+                ? "origin-top object-cover scale-[1.42] transition-transform duration-700 group-hover:scale-[1.46]"
+                : "object-cover transition-transform duration-700 group-hover:scale-[1.025]"
+            }
           />
           {!inStock && (
-            <span className="absolute top-3 left-3 rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-accent-foreground">
+            <span className="absolute left-3 top-3 bg-card px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground">
               Под заказ
             </span>
           )}
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2 border-t border-border pt-3">
           <p className="eyebrow">{product.category.name}</p>
-          <h3 className="font-serif text-lg font-medium leading-snug group-hover:text-muted-foreground transition-colors">
+          <h3 className="font-serif text-xl font-normal leading-snug group-hover:text-pine transition-colors">
             {product.name}
           </h3>
           <div className="flex items-center justify-between gap-2 pt-1">
@@ -63,7 +70,7 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  inStock ? "bg-emerald-600" : "bg-muted-foreground/50"
+                  inStock ? "bg-pine" : "bg-muted-foreground/50"
                 }`}
               />
               {inStock ? "В наличии" : "Под заказ"}

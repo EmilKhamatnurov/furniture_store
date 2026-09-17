@@ -62,6 +62,38 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
 }
 
 /**
+ * New order notifications — customer confirmation and the operational email
+ * to the manager are independent, stable BullMQ jobs. A queue failure never
+ * rolls back a successfully created order.
+ */
+export async function sendOrderCreatedEmails(orderId: string): Promise<void> {
+  try {
+    const order = await loadOrder(orderId);
+    if (!order) {
+      log.warn({ orderId }, "sendOrderCreatedEmails: order not found");
+      return;
+    }
+
+    const customerEmail = renderOrderConfirmation(order);
+    const adminEmail = renderAdminNewOrder(order, { paymentReceived: false });
+    const adminTo = env.ADMIN_EMAIL || env.EMAIL_FROM;
+
+    await Promise.all([
+      enqueue(
+        { to: order.email, ...customerEmail, tag: "order-confirmation" },
+        `email:order-confirmation:${orderId}`
+      ),
+      enqueue(
+        { to: adminTo, ...adminEmail, tag: "admin-new-order" },
+        `email:admin-new-order:${orderId}`
+      ),
+    ]);
+  } catch (err) {
+    log.error({ err, orderId }, "Failed to enqueue new order emails");
+  }
+}
+
+/**
  * Payment received — sent to customer AND admin when an order is paid.
  * Called from the YuKassa webhook; failures are logged, not thrown.
  */
@@ -82,10 +114,10 @@ export async function sendPaymentReceivedEmails(orderId: string): Promise<void> 
 
     // Admin notification
     const adminTo = env.ADMIN_EMAIL || env.EMAIL_FROM;
-    const adminEmail = renderAdminNewOrder(order);
+    const adminEmail = renderAdminNewOrder(order, { paymentReceived: true });
     await enqueue(
       { to: adminTo, ...adminEmail, tag: "admin-new-order" },
-      `email:admin-new-order:${orderId}`
+      `email:admin-paid-order:${orderId}`
     );
   } catch (err) {
     log.error({ err, orderId }, "Failed to enqueue payment-received emails");

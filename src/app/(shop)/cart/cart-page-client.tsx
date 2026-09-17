@@ -13,10 +13,10 @@ export function CartPageClient() {
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-6 py-20 text-center">
-        <ShoppingBag className="h-16 w-16 text-muted-foreground/25" />
+      <div className="flex flex-col items-center gap-6 border-y border-border py-24 text-center">
+        <ShoppingBag className="h-12 w-12 text-pine/45" />
         <div className="space-y-2">
-          <p className="text-xl font-medium">Корзина пуста</p>
+          <p className="font-serif text-3xl">Корзина пуста</p>
           <p className="text-muted-foreground text-sm">
             Добавьте товары из каталога
           </p>
@@ -29,9 +29,13 @@ export function CartPageClient() {
   }
 
   return (
-    <div className="grid lg:grid-cols-[1fr_340px] gap-10 items-start">
+    <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-16">
       {/* Items list */}
       <div>
+        <div className="mb-5 flex items-baseline justify-between border-b border-border pb-4">
+          <p className="eyebrow">Выбранные предметы</p>
+          <p className="text-sm text-muted-foreground">{items.length} поз.</p>
+        </div>
         <ul className="divide-y divide-border border-t border-border">
           {items.map((item) => (
             <CartItemRow key={item.variantId} item={item} />
@@ -46,8 +50,8 @@ export function CartPageClient() {
       </div>
 
       {/* Order summary */}
-      <div className="rounded-lg border border-border p-6 space-y-5 lg:sticky lg:top-24">
-        <h2 className="font-semibold text-lg">Сумма заказа</h2>
+      <div className="space-y-5 border-y border-border bg-card p-6 lg:sticky lg:top-24 lg:p-8">
+        <p className="eyebrow text-pine">Сумма заказа</p>
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -62,7 +66,7 @@ export function CartPageClient() {
           </div>
         </div>
 
-        <div className="border-t border-border pt-4 flex justify-between font-semibold text-base">
+        <div className="flex justify-between border-t border-border pt-5 font-semibold text-base">
           <span>К оплате</span>
           <span className="tabular-nums">{formatRub(totalCopecks)}</span>
         </div>
@@ -71,8 +75,8 @@ export function CartPageClient() {
           <Link href={urls.checkout()}>Оформить заказ</Link>
         </Button>
 
-        <p className="text-xs text-muted-foreground text-center">
-          Оплата картой или СБП после подтверждения заказа
+        <p className="text-center text-xs leading-5 text-muted-foreground">
+          Test/demo: финальная оплата и юридические условия будут добавлены перед production.
         </p>
       </div>
     </div>

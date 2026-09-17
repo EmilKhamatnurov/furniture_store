@@ -1,234 +1,173 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import type { Metadata } from "next";
-import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
-import { ProductCard } from "@/modules/catalog/ui/product-card";
+import { Container } from "@/components/ui/container";
 import {
   getCategoryTree,
-  getProductsByCategorySlug,
+  getProductBySlug,
   type ProductWithRelations,
 } from "@/modules/catalog";
-import { listPublishedPosts } from "@/modules/cms";
+import { ProductCard } from "@/modules/catalog/ui/product-card";
 import { imageUrl } from "@/lib/utils/images";
 import { urls } from "@/lib/utils/urls";
 
-const blogDateFmt = new Intl.DateTimeFormat("ru-RU", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-
-// Rendered per request — reads live catalog data (Redis-cached underneath).
-// force-dynamic keeps the Docker build DB-independent (no build-time prerender).
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Мебель ручной работы — серийная мебель от мастерской",
+  title: "Предметная мебель — тестовая витрина",
   description:
-    "Кресла, диваны, столы и другая мебель ручной работы. Авторский дизайн, качественные материалы, доставка по Москве и области.",
+    "Тестовая витрина KHAMATNUROV MEBEL: современная предметная мебель собственного дизайна в Уфе.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "KHAMATNUROV MEBEL — мебель ручной работы",
-    description:
-      "Серийная мебель ручной работы. Доставка по Москве и области.",
+    title: "KHAMATNUROV MEBEL — предметная мебель",
+    description: "Тестовая витрина мастерской из Уфы.",
     url: "/",
   },
 };
 
 export default async function HomePage() {
   const categoryTree = await getCategoryTree();
-
-  // Pull a small "featured" set: first 8 products from the first category
-  const firstCategory = categoryTree[0];
-  let featured: ProductWithRelations[] = [];
-  if (firstCategory) {
-    const all = await getProductsByCategorySlug(firstCategory.slug);
-    featured = all.slice(0, 8);
-  }
-
-  const latestPosts = (await listPublishedPosts()).slice(0, 3);
+  const demoProduct = await getProductBySlug("khm-demo-01");
+  const featured: ProductWithRelations[] = demoProduct ? [demoProduct] : [];
 
   return (
     <>
-      {/* ----------------------------------------------------------------- */}
-      {/* Hero                                                               */}
-      {/* ----------------------------------------------------------------- */}
-      <section className="relative overflow-hidden border-b border-border">
-        <Container>
-          <div className="py-20 md:py-28 max-w-3xl">
-            <span className="inline-flex items-center rounded-full border border-border bg-secondary/60 px-4 py-1.5 eyebrow">
-              Ручная работа · массив дерева · с 2018
-            </span>
+      <section className="border-b border-border">
+        <Container size="wide" className="px-0 sm:px-0 lg:px-0">
+          <div className="grid min-h-[min(780px,calc(100svh-64px))] lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
+            <div className="flex min-w-0 flex-col justify-between overflow-hidden px-5 py-10 sm:px-8 sm:py-14 lg:px-12 lg:py-16 xl:px-20">
+              <div className="flex items-center justify-between gap-4">
+                <p className="eyebrow text-pine">Демонстрационная витрина</p>
+                <span className="text-xs tabular-nums text-muted-foreground">01 / 01</span>
+              </div>
 
-            <h1 className="mt-7 font-serif text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.05] tracking-tight">
-              Мебель,
-              <br />
-              которая <span className="italic font-medium">остаётся</span>
-            </h1>
+              <div className="max-w-[38rem] py-14 lg:py-0">
+                <p className="mb-5 text-sm leading-6 text-muted-foreground sm:text-base">
+                  Test/demo-сборка · Уфа
+                </p>
+                <h1 className="display-title text-[clamp(3.4rem,5.2vw,6.25rem)]">
+                  Мебель как
+                  <br />
+                  часть <em className="font-serif text-oak not-italic">пространства.</em>
+                </h1>
+                <p className="mt-7 max-w-md text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                  Тестовый первый срез магазина. Здесь проверяем каталог,
+                  конфигурации, остатки и путь к заказу на одной модели стола.
+                </p>
+                <div className="mt-9 flex flex-wrap gap-3">
+                  <Button size="lg" asChild>
+                    <Link href={urls.catalog()}>Смотреть витрину</Link>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild>
+                    <Link href="#materials">О материале</Link>
+                  </Button>
+                </div>
+              </div>
 
-            <p className="mt-6 text-lg text-muted-foreground leading-relaxed max-w-xl">
-              Изделия из&nbsp;скандинавской ели, берёзы и&nbsp;дуба. Без&nbsp;посредников —
-              напрямую из&nbsp;собственной мастерской.
-            </p>
+              <div className="grid grid-cols-3 gap-4 border-t border-border pt-5 text-xs leading-5 text-muted-foreground sm:gap-8 sm:text-sm">
+                <p><span className="block text-foreground">Уфа</span>тестовая доставка</p>
+                <p><span className="block text-foreground">4 SKU</span>в демонстрации</p>
+                <p><span className="block text-foreground">В наличии</span>по остаткам SKU</p>
+              </div>
+            </div>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" asChild>
-                <Link href={urls.catalog()}>Смотреть каталог</Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href={urls.page("about")}>Как мы делаем →</Link>
-              </Button>
+            <div className="relative min-h-[26rem] overflow-hidden bg-secondary lg:min-h-0">
+              <Image
+                src="/images/demo/hero-table.png"
+                alt="Тестовая интерьерная фотография обеденного стола из дуба"
+                fill
+                priority
+                sizes="(min-width: 1024px) 56vw, 100vw"
+                className="object-cover object-center"
+              />
+              <div className="absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-foreground/45 to-transparent p-5 text-primary-foreground sm:p-8">
+                <p className="max-w-[14rem] text-xs leading-5 sm:text-sm">
+                  Обеденный стол KHM Demo 01
+                </p>
+                <span className="eyebrow text-primary-foreground/75">Oak / 2026</span>
+              </div>
             </div>
           </div>
         </Container>
-
-        {/* Trust bar */}
-        <div className="border-t border-border">
-          <Container>
-            <ul className="flex flex-wrap gap-x-10 gap-y-3 py-5 text-sm text-muted-foreground">
-              {[
-                "Доставка по России",
-                "Гарантия 5 лет",
-                "100% массив дерева",
-                "Оплата при получении",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent-foreground/50" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </Container>
-        </div>
       </section>
 
-      {/* ----------------------------------------------------------------- */}
-      {/* Categories                                                        */}
-      {/* ----------------------------------------------------------------- */}
+      <section className="py-20 sm:py-28 lg:py-36" id="materials">
+        <Container>
+          <div className="grid gap-12 lg:grid-cols-12 lg:items-end">
+            <div className="lg:col-span-5">
+              <p className="eyebrow mb-5 text-pine">01 — Материал и конструкция</p>
+              <h2 className="display-title max-w-lg text-4xl sm:text-5xl lg:text-6xl">
+                Детали создают
+                <br />
+                целое.
+              </h2>
+            </div>
+            <div className="lg:col-span-4 lg:col-start-8">
+              <p className="text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                В demo-версии мы показываем, как должен работать язык будущего
+                каталога: крупный предмет, точная фактура и спокойная информация
+                без декоративного шума.
+              </p>
+              <div className="mt-8 editorial-rule" />
+              <p className="mt-4 text-sm text-muted-foreground">Дуб · матовое покрытие · графитовая деталь</p>
+            </div>
+          </div>
+
+          <div className="mt-12 grid gap-4 lg:mt-16 lg:grid-cols-12">
+            <div className="relative min-h-[32rem] overflow-hidden bg-pine lg:col-span-5 lg:min-h-[42rem]">
+              <Image
+                src="/images/demo/oak-joint-detail.png"
+                alt="Тестовая макрофотография дубового соединения мебели"
+                fill
+                sizes="(min-width: 1024px) 38vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="flex min-h-[18rem] flex-col justify-between bg-pine p-7 text-pine-foreground sm:p-10 lg:col-span-7 lg:min-h-[42rem] lg:p-14">
+              <p className="eyebrow text-pine-foreground/60">Тестовый принцип витрины</p>
+              <div className="max-w-2xl">
+                <p className="display-title text-3xl sm:text-4xl lg:text-5xl">
+                  Не украшать интерфейс вместо того, чтобы показать предмет.
+                </p>
+                <p className="mt-6 max-w-xl text-sm leading-6 text-pine-foreground/70 sm:text-base sm:leading-7">
+                  Темные поверхности используются точечно — чтобы подчеркнуть
+                  композицию, фото и действие, а не сделать сайт тяжелым.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Container>
+      </section>
+
       {categoryTree.length > 0 && (
-        <section className="py-16 md:py-20">
+        <section className="border-y border-border bg-card py-20 sm:py-28">
           <Container>
-            <div className="flex items-end justify-between mb-8">
+            <div className="flex items-end justify-between gap-6">
               <div>
-                <p className="eyebrow mb-2">Категории</p>
-                <h2 className="font-serif text-3xl md:text-4xl font-semibold tracking-tight">
-                  Что мы делаем
-                </h2>
+                <p className="eyebrow mb-4 text-pine">02 — Коллекция</p>
+                <h2 className="display-title text-4xl sm:text-5xl">Выберите предмет</h2>
               </div>
-              <Link
-                href={urls.catalog()}
-                className="text-sm font-medium hover:text-muted-foreground transition-colors whitespace-nowrap"
-              >
-                Все категории →
+              <Link href={urls.catalog()} className="shrink-0 border-b border-foreground pb-1 text-sm font-semibold hover:text-muted-foreground">
+                Весь каталог
               </Link>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {categoryTree.slice(0, 8).map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={urls.category(cat.slug)}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-muted"
-                >
-                  <Image
-                    src={imageUrl(cat.imageKey)}
-                    alt={cat.name}
-                    fill
-                    sizes="(min-width: 1024px) 25vw, 50vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-background text-lg font-medium">
-                      {cat.name}
-                    </h3>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </Container>
-        </section>
-      )}
 
-      {/* ----------------------------------------------------------------- */}
-      {/* Featured products                                                 */}
-      {/* ----------------------------------------------------------------- */}
-      {featured.length > 0 && firstCategory && (
-        <section className="py-16 md:py-20 border-t border-border bg-secondary/30">
-          <Container>
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <p className="eyebrow mb-2">Витрина</p>
-                <h2 className="font-serif text-3xl md:text-4xl font-semibold tracking-tight">
-                  Популярное в&nbsp;категории «{firstCategory.name}»
-                </h2>
-              </div>
-              <Link
-                href={urls.category(firstCategory.slug)}
-                className="text-sm font-medium hover:text-muted-foreground transition-colors whitespace-nowrap"
-              >
-                Все товары →
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {featured.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </Container>
-        </section>
-      )}
-
-      {/* ----------------------------------------------------------------- */}
-      {/* Latest blog posts — fresh content + internal links to the blog    */}
-      {/* ----------------------------------------------------------------- */}
-      {latestPosts.length > 0 && (
-        <section className="py-16 md:py-20 border-t border-border">
-          <Container>
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <p className="eyebrow mb-2">Журнал</p>
-                <h2 className="font-serif text-3xl md:text-4xl font-semibold tracking-tight">
-                  Из блога
-                </h2>
-              </div>
-              <Link
-                href={urls.blog()}
-                className="text-sm font-medium hover:text-muted-foreground transition-colors whitespace-nowrap"
-              >
-                Все статьи →
-              </Link>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {latestPosts.map((post) => (
-                <Link
-                  key={post.slug}
-                  href={urls.blogPost(post.slug)}
-                  className="group flex flex-col overflow-hidden rounded-lg border border-border hover:border-foreground/20 transition-colors"
-                >
-                  <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+            <div className="mt-12 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+              {categoryTree.slice(0, 4).map((category, index) => (
+                <Link key={category.id} href={urls.category(category.slug)} className="group block">
+                  <div className={`relative overflow-hidden bg-secondary ${index === 0 ? "aspect-[4/5]" : "aspect-[5/4]"}`}>
                     <Image
-                      src={imageUrl(post.coverImageKey)}
-                      alt={post.title}
+                      src={imageUrl(category.imageKey)}
+                      alt={category.name}
                       fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      sizes="(min-width: 1024px) 22vw, (min-width: 640px) 45vw, 100vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.025]"
                     />
                   </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    {post.publishedAt && (
-                      <time className="text-xs text-muted-foreground">
-                        {blogDateFmt.format(post.publishedAt)}
-                      </time>
-                    )}
-                    <h3 className="font-serif text-lg font-semibold mt-1 group-hover:text-primary transition-colors">
-                      {post.title}
-                    </h3>
-                    {post.excerpt && (
-                      <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                        {post.excerpt}
-                      </p>
-                    )}
+                  <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-border pt-3">
+                    <h3 className="font-serif text-xl leading-none">{category.name}</h3>
+                    <span className="text-xs text-muted-foreground">0{index + 1}</span>
                   </div>
                 </Link>
               ))}
@@ -236,6 +175,32 @@ export default async function HomePage() {
           </Container>
         </section>
       )}
+
+      <section className="py-20 sm:py-28">
+        <Container>
+          <div className="grid gap-10 border-y border-border py-10 sm:py-14 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <p className="eyebrow mb-4 text-pine">03 — Первая модель</p>
+              <h2 className="display-title text-4xl sm:text-5xl">KHM Demo 01</h2>
+              <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
+                Демонстрационная модель для проверки вариантов: размер, материал,
+                оттенок, отделка, точная цена и остаток.
+              </p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href={demoProduct ? urls.product(demoProduct.category.slug, demoProduct.slug) : urls.catalog()}>
+                Перейти к модели
+              </Link>
+            </Button>
+          </div>
+
+          {featured.length > 0 && (
+            <div className="mt-12 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+              {featured.map((product) => <ProductCard key={product.id} product={product} />)}
+            </div>
+          )}
+        </Container>
+      </section>
     </>
   );
 }

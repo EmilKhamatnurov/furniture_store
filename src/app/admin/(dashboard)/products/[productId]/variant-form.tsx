@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateVariantAction } from "../../actions";
+import { formatVariantOptions } from "@/modules/catalog/domain/variant-options";
 
 interface VariantFormProps {
   variantId: string;
@@ -13,6 +14,7 @@ interface VariantFormProps {
   priceRub: string; // "" when inheriting base price
   stockQuantity: number;
   isActive: boolean;
+  options: Array<{ name: string; value: string }>;
 }
 
 export function VariantForm(props: VariantFormProps) {
@@ -30,6 +32,17 @@ export function VariantForm(props: VariantFormProps) {
         <p className="text-sm font-medium">{props.label}</p>
         <p className="text-xs text-muted-foreground">SKU {props.sku}</p>
       </div>
+
+      <label className="w-full text-xs text-muted-foreground">
+        Параметры — одна строка на значение
+        <textarea
+          name="optionsText"
+          rows={2}
+          defaultValue={formatVariantOptions(props.options)}
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          required
+        />
+      </label>
 
       <label className="text-xs text-muted-foreground">
         Цена, ₽ (пусто = базовая)

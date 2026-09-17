@@ -52,7 +52,16 @@ function cartReducer(state: CartItem[], action: Action): CartItem[] {
       if (idx >= 0) {
         // Already in cart — increment quantity
         return state.map((item, i) =>
-          i === idx ? { ...item, quantity: item.quantity + 1 } : item
+          i === idx
+            ? {
+                ...item,
+                stockQuantity: action.item.stockQuantity ?? item.stockQuantity,
+                quantity: Math.min(
+                  item.quantity + 1,
+                  action.item.stockQuantity ?? item.stockQuantity ?? 99
+                ),
+              }
+            : item
         );
       }
       return [...state, { ...action.item, quantity: 1 }];
@@ -64,7 +73,9 @@ function cartReducer(state: CartItem[], action: Action): CartItem[] {
     case "SET_QTY":
       if (action.qty <= 0) return state.filter((i) => i.variantId !== action.variantId);
       return state.map((i) =>
-        i.variantId === action.variantId ? { ...i, quantity: action.qty } : i
+        i.variantId === action.variantId
+          ? { ...i, quantity: Math.min(action.qty, i.stockQuantity ?? 99) }
+          : i
       );
 
     case "CLEAR":
@@ -106,9 +117,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Read cart from localStorage on first mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) dispatch({ type: "HYDRATE", items: deserializeCart(stored) });
-    setHydrated(true);
+    // Defer hydration one microtask. React 19.2 flags synchronous state
+    // updates in effects because they can cause a cascading render; this still
+    // runs immediately after mount without changing the SSR initial state.
+    queueMicrotask(() => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) dispatch({ type: "HYDRATE", items: deserializeCart(stored) });
+      setHydrated(true);
+    });
   }, []);
 
   // Persist cart to localStorage whenever items change (skip pre-hydration)

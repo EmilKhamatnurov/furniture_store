@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { formatRub } from "@/lib/utils/money";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,9 @@ export function VariantPicker({
   primaryImageS3Key = null,
 }: VariantPickerProps) {
   const { addItem } = useCart();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   // Build option groups: { "Дерево": ["Дуб", "Орех"], "Обивка": [...] }
   const optionGroups = useMemo(() => {
     const groups = new Map<string, Set<string>>();
@@ -42,10 +46,15 @@ export function VariantPicker({
     }));
   }, [variants]);
 
-  // Initialize selection with first variant's options
+  // A shareable SKU query restores a configuration when a visitor returns.
+  // Fall back to the first in-stock fixture instead of a dead-end variant.
   const [selected, setSelected] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
-    const first = variants[0];
+    const requestedSku = searchParams.get("sku");
+    const first =
+      variants.find((variant) => variant.sku === requestedSku && variant.stockQuantity > 0) ??
+      variants.find((variant) => variant.stockQuantity > 0) ??
+      variants[0];
     if (first) {
       for (const opt of first.options) init[opt.name] = opt.value;
     }
@@ -66,6 +75,46 @@ export function VariantPicker({
     ? getVariantPrice(product, matchingVariant)
     : product.basePriceCopecks;
 
+  function isOptionAvailable(groupName: string, value: string) {
+    return variants.some(
+      (variant) =>
+        variant.stockQuantity > 0 &&
+        variant.options.every(
+          (option) =>
+            option.name === groupName
+              ? option.value === value
+              : selected[option.name] === option.value
+        )
+    );
+  }
+
+  function selectOption(groupName: string, value: string) {
+    // A change on one axis can make a previous combination invalid. Resolve to
+    // the closest sellable configuration instead of leaving a dead-end state.
+    const candidate = variants
+      .filter((variant) =>
+        variant.stockQuantity > 0 &&
+        variant.options.some(
+          (option) => option.name === groupName && option.value === value
+        )
+      )
+      .sort((a, b) => {
+        const score = (variant: ProductVariant) =>
+          variant.options.filter(
+            (option) => option.name !== groupName && selected[option.name] === option.value
+          ).length;
+        return score(b) - score(a);
+      })[0] ?? variants.find((variant) =>
+        variant.options.some((option) => option.name === groupName && option.value === value)
+      );
+
+    if (!candidate) return;
+    setSelected(Object.fromEntries(candidate.options.map((option) => [option.name, option.value])));
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("sku", candidate.sku);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   function handleAddToCart() {
     if (!matchingVariant) return;
     addItem({
@@ -76,35 +125,37 @@ export function VariantPicker({
       sku: matchingVariant.sku,
       imageS3Key: primaryImageS3Key,
       priceCopecks: price,
+      stockQuantity: matchingVariant.stockQuantity,
       quantity: 1,
     });
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7 border-y border-border py-7">
       {optionGroups.map((group) => (
         <div key={group.name}>
-          <div className="text-sm font-medium mb-2">
-            {group.name}:{" "}
-            <span className="text-muted-foreground">
-              {selected[group.name]}
+          <div className="mb-3 flex items-baseline justify-between gap-4">
+            <span className="text-xs font-semibold uppercase tracking-[0.1em]">
+              {group.name}
             </span>
+            <span className="text-sm text-muted-foreground">{selected[group.name]}</span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             {group.values.map((value) => {
               const isActive = selected[group.name] === value;
+              const isAvailable = isOptionAvailable(group.name, value);
               return (
                 <button
                   key={value}
                   type="button"
-                  onClick={() =>
-                    setSelected((s) => ({ ...s, [group.name]: value }))
-                  }
+                  onClick={() => selectOption(group.name, value)}
+                  aria-pressed={isActive}
+                  disabled={!isAvailable}
                   className={cn(
-                    "px-4 py-2 text-sm rounded-md border transition-colors",
+                    "border px-3.5 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:border-border disabled:bg-muted/50 disabled:text-muted-foreground/45 sm:px-4",
                     isActive
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-input bg-background hover:border-primary/50"
+                      : "border-input bg-card hover:border-pine hover:text-pine"
                   )}
                 >
                   {value}
@@ -115,10 +166,10 @@ export function VariantPicker({
         </div>
       ))}
 
-      <div className="pt-4 border-t border-border space-y-4">
+      <div className="space-y-4 pt-1">
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-muted-foreground">Цена:</span>
-          <span className="text-2xl font-semibold">{formatRub(price)}</span>
+          <span className="eyebrow">Тестовая цена</span>
+          <span className="font-serif text-3xl">{formatRub(price)}</span>
         </div>
 
         <Button
@@ -132,8 +183,8 @@ export function VariantPicker({
         </Button>
 
         {matchingVariant && matchingVariant.stockQuantity > 0 && (
-          <p className="text-xs text-muted-foreground text-center">
-            Артикул: {matchingVariant.sku}
+          <p className="text-center text-xs text-muted-foreground">
+            В наличии: {matchingVariant.stockQuantity} шт. · SKU {matchingVariant.sku}
           </p>
         )}
       </div>

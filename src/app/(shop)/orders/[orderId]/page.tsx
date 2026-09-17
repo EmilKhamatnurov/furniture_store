@@ -22,6 +22,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { orderId } = await params;
+  if (!isOrderId(orderId)) return { title: "Заказ не найден" };
   const order = await db.query.orders.findFirst({
     where: eq(orders.id, orderId),
   });
@@ -35,6 +36,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function OrderConfirmationPage({ params, searchParams }: PageProps) {
   const { orderId } = await params;
   const { t } = await searchParams;
+
+  // Avoid passing malformed route values to PostgreSQL UUID comparisons. A
+  // bad public URL is a normal not-found state, never an application error.
+  if (!isOrderId(orderId)) notFound();
 
   const order = await db.query.orders.findFirst({
     where: eq(orders.id, orderId),
@@ -183,6 +188,12 @@ export default async function OrderConfirmationPage({ params, searchParams }: Pa
         </div>
       </Container>
     </>
+  );
+}
+
+function isOrderId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
   );
 }
 

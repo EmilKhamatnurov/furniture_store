@@ -56,10 +56,10 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-6 py-20 text-center">
-        <ShoppingBag className="h-14 w-14 text-muted-foreground/25" />
+      <div className="flex flex-col items-center gap-6 border-y border-border py-24 text-center">
+        <ShoppingBag className="h-12 w-12 text-pine/45" />
         <div className="space-y-1">
-          <p className="text-lg font-medium">Корзина пуста</p>
+          <p className="font-serif text-3xl">Корзина пуста</p>
           <p className="text-sm text-muted-foreground">
             Добавьте товары, чтобы оформить заказ
           </p>
@@ -72,7 +72,7 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
   }
 
   return (
-    <form action={action} className="grid lg:grid-cols-[1fr_380px] gap-10 items-start">
+    <form action={action} className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-16">
       <input type="hidden" name="cartItems" value={cartItemsJson} />
 
       {/* ---- Left: form fields ---- */}
@@ -83,8 +83,8 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
           </div>
         )}
 
-        <section className="space-y-5">
-          <h2 className="font-serif text-xl font-semibold">Контактные данные</h2>
+        <section className="border-t border-border pt-5 space-y-5">
+          <div className="flex items-baseline justify-between gap-4"><h2 className="font-serif text-2xl font-normal">Контактные данные</h2><span className="eyebrow">01</span></div>
           <div className="grid gap-4">
             <Field
               label="ФИО"
@@ -114,22 +114,26 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
           </div>
         </section>
 
-        <section className="space-y-5">
-          <h2 className="font-serif text-xl font-semibold">Адрес доставки</h2>
+        <section className="border-t border-border pt-5 space-y-5">
+          <div className="flex items-baseline justify-between gap-4"><h2 className="font-serif text-2xl font-normal">Адрес доставки</h2><span className="eyebrow">02</span></div>
           <div className="grid gap-4">
             <div className="grid sm:grid-cols-2 gap-4">
               <Field
                 label="Регион / область"
                 name="region"
-                placeholder="Московская область"
+                placeholder="Республика Башкортостан"
                 autoComplete="address-level1"
+                defaultValue="Республика Башкортостан"
                 error={state?.errors?.region?.[0]}
               />
               <Field
                 label="Город"
                 name="city"
-                placeholder="Москва"
+                placeholder="Уфа"
                 autoComplete="address-level2"
+                defaultValue="Уфа"
+                readOnly
+                help="Доставка в тестовом сценарии доступна по Уфе."
                 error={state?.errors?.city?.[0]}
               />
             </div>
@@ -162,15 +166,15 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
           </div>
         </section>
 
-        <section className="space-y-2">
-          <Label htmlFor="zoneId">Зона доставки</Label>
+        <section className="border-t border-border pt-5 space-y-2">
+          <div className="flex items-baseline justify-between gap-4"><Label htmlFor="zoneId" className="font-serif text-2xl font-normal">Зона доставки</Label><span className="eyebrow">03</span></div>
           <select
             id="zoneId"
             name="zoneId"
             required
             defaultValue=""
             onChange={(e) => onZoneChange(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm h-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 w-full border border-input bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-invalid={!!state?.errors?.zoneId}
           >
             <option value="" disabled>
@@ -188,7 +192,7 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
           {quoteError && <p className="text-xs text-destructive">{quoteError}</p>}
         </section>
 
-        <section className="space-y-2">
+        <section className="border-t border-border pt-5 space-y-2">
           <Label htmlFor="note">
             Комментарий{" "}
             <span className="text-muted-foreground font-normal">(необязательно)</span>
@@ -198,21 +202,21 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
             name="note"
             rows={3}
             placeholder="Пожелания по доставке, удобное время и т.д."
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+            className="w-full border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
           />
         </section>
       </div>
 
       {/* ---- Right: order summary ---- */}
-      <div className="lg:sticky lg:top-24 rounded-lg border border-border overflow-hidden">
+      <div className="overflow-hidden border-y border-border bg-card lg:sticky lg:top-24">
         <div className="px-5 py-4 border-b border-border">
-          <h2 className="font-semibold">Ваш заказ</h2>
+          <p className="eyebrow text-pine">Ваш заказ</p>
         </div>
 
         <ul className="divide-y divide-border px-5">
           {items.map((item) => (
             <li key={item.variantId} className="flex items-center gap-3 py-3">
-              <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md bg-muted">
+              <div className="relative h-16 w-14 flex-shrink-0 overflow-hidden bg-muted">
                 <Image
                   src={imageUrl(item.imageS3Key)}
                   alt={item.productName}
@@ -222,7 +226,7 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{item.productName}</p>
+                <p className="font-serif text-base truncate">{item.productName}</p>
                 <p className="text-xs text-muted-foreground">
                   {item.variantLabel} · {item.quantity} шт
                 </p>
@@ -254,7 +258,7 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
             </div>
           </div>
 
-          <div className="flex justify-between font-semibold text-base pt-2 border-t border-border">
+          <div className="flex justify-between border-t border-border pt-4 font-semibold text-base">
             <span>Итого</span>
             <span className="tabular-nums">
               {shipping === null ? formatRub(totalCopecks) : formatRub(grandTotal)}
@@ -270,8 +274,8 @@ export function CheckoutForm({ zones }: { zones: ZoneOption[] }) {
             {isPending ? "Оформляем…" : "Оформить заказ"}
           </Button>
 
-          <p className="text-xs text-muted-foreground text-center">
-            Нажимая кнопку, вы соглашаетесь с условиями оферты
+          <p className="text-center text-xs leading-5 text-muted-foreground">
+            Test/demo: перед production здесь появятся версии оферты и согласий.
           </p>
         </div>
       </div>
@@ -287,9 +291,10 @@ interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   name: string;
   error?: string | undefined;
   required?: boolean | undefined;
+  help?: string | undefined;
 }
 
-function Field({ label, name, error, required = true, ...inputProps }: FieldProps) {
+function Field({ label, name, error, required = true, help, ...inputProps }: FieldProps) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={name}>
@@ -300,13 +305,18 @@ function Field({ label, name, error, required = true, ...inputProps }: FieldProp
         name={name}
         required={required}
         aria-invalid={!!error}
-        aria-describedby={error ? `${name}-error` : undefined}
+        aria-describedby={error ? `${name}-error` : help ? `${name}-help` : undefined}
         className={error ? "border-destructive focus-visible:ring-destructive" : ""}
         {...inputProps}
       />
       {error && (
         <p id={`${name}-error`} className="text-xs text-destructive">
           {error}
+        </p>
+      )}
+      {!error && help && (
+        <p id={`${name}-help`} className="text-xs text-muted-foreground">
+          {help}
         </p>
       )}
     </div>

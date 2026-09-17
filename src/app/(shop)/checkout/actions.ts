@@ -2,12 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { checkoutSchema, parseCartLines, type CartLine } from "./schema";
-import { createOrder, createOrderAccessToken, type OrderLineInput } from "@/modules/orders";
-import { sendOrderConfirmationEmail } from "@/modules/email";
+import { createOrder, createOrderAccessToken } from "@/modules/orders";
+import { sendOrderCreatedEmails } from "@/modules/email";
 import { getCurrentCustomer } from "@/modules/customers";
 import { findSellableVariantsByIds } from "@/modules/catalog";
 import { quoteShipping } from "@/modules/shipping";
 import { rateLimit, clientIp, retryAfterText } from "@/lib/security/rate-limit";
+import { buildOrderLines } from "./order-lines";
 
 export interface ActionState {
   errors?: Partial<Record<string, string[]>>;
@@ -17,26 +18,11 @@ export interface ActionState {
 // ---------------------------------------------------------------------------
 // Server-side re-pricing: the client only tells us WHAT it wants
 // (variantId + quantity); prices, names and SKUs always come from the DB.
-// Returns null when some variant no longer exists / is not sellable.
+// Returns a user-safe error when a variant is unavailable or stock changed.
 // ---------------------------------------------------------------------------
-async function buildOrderLines(lines: CartLine[]): Promise<OrderLineInput[] | null> {
+async function buildOrderLinesFromCatalog(lines: CartLine[]) {
   const variants = await findSellableVariantsByIds(lines.map((l) => l.variantId));
-  const byId = new Map(variants.map((v) => [v.id, v]));
-
-  const result: OrderLineInput[] = [];
-  for (const line of lines) {
-    const v = byId.get(line.variantId);
-    if (!v) return null; // variant removed/deactivated since it was added to cart
-    result.push({
-      variantId: v.id,
-      productName: v.product.name,
-      variantLabel: v.label,
-      sku: v.sku,
-      quantity: line.quantity,
-      unitPriceCopecks: v.priceCopecks ?? v.product.basePriceCopecks,
-    });
-  }
-  return result;
+  return buildOrderLines(lines, variants);
 }
 
 // ---------------------------------------------------------------------------
@@ -121,13 +107,8 @@ export async function checkoutAction(
   }
 
   // Authoritative prices/names/SKUs from the catalog — never from the client
-  const items = await buildOrderLines(lines);
-  if (!items) {
-    return {
-      message:
-        "Некоторые товары из корзины больше недоступны. Обновите страницу и проверьте корзину.",
-    };
-  }
+  const orderLines = await buildOrderLinesFromCatalog(lines);
+  if ("error" in orderLines) return { message: orderLines.error };
 
   // Recompute shipping server-side (never trust a client-supplied amount)
   const quote = await quoteShipping(lines, zoneId);
@@ -152,7 +133,7 @@ export async function checkoutAction(
         zoneName: quote.zoneName,
         ...(apartment ? { apartment } : {}),
       },
-      items,
+      items: orderLines.items,
       note,
       customerId: customer?.id,
       shippingCopecks: quote.shippingCopecks,
@@ -163,9 +144,9 @@ export async function checkoutAction(
     return { message: "Произошла ошибка при создании заказа. Попробуйте позже." };
   }
 
-  // Fire-and-forget confirmation email (enqueues a BullMQ job; never blocks).
-  // Internally swallows its own errors, so checkout never fails on email.
-  await sendOrderConfirmationEmail(orderId);
+  // Customer confirmation and manager notification are queued independently.
+  // Internal failures are swallowed, so checkout never fails on email.
+  await sendOrderCreatedEmails(orderId);
 
   // Capability token so the guest can view their order (page hides PII otherwise)
   const token = createOrderAccessToken(orderId);

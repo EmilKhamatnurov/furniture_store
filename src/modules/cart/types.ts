@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Cart types
 // priceCopecks is a bigint snapshot taken at the moment of add-to-cart.
-// We never re-read the product price after that — price locks at add time.
+// The checkout always re-reads price and availability from the server.
 // ---------------------------------------------------------------------------
 
 export interface CartItem {
@@ -14,5 +14,7 @@ export interface CartItem {
   imageS3Key: string | null;
   /** Price at the moment the item was added — bigint kopecks */
   priceCopecks: bigint;
+  /** Stock snapshot for a helpful client-side quantity limit; server is authoritative. */
+  stockQuantity?: number | undefined;
   quantity: number;
 }

@@ -23,6 +23,9 @@ export type CategoryWithProductCount = Category & {
   productCount: number;
 };
 
+export { formatVariantOptions, parseVariantOptions } from "./variant-options";
+export type { VariantOption } from "./variant-options";
+
 // ---------------------------------------------------------------------------
 // Pure pricing logic
 // Variant price overrides product base price; if variant has no override,

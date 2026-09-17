@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { listAllProductsAdmin } from "@/modules/admin";
 import { formatRub } from "@/lib/utils/money";
 
@@ -10,11 +11,16 @@ export default async function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-serif text-2xl md:text-3xl font-semibold">Товары</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-serif text-2xl md:text-3xl font-semibold">Товары</h1>
+        <Link href="/admin/products/new" className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Plus className="h-4 w-4" /> Новый товар
+        </Link>
+      </div>
 
       {products.length === 0 ? (
         <p className="text-sm text-muted-foreground rounded-lg border border-border p-8 text-center">
-          Товаров нет. Добавьте их через сидер: <code>npm run db:seed</code>
+          Товаров нет. Создайте первый черновик кнопкой выше.
         </p>
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">

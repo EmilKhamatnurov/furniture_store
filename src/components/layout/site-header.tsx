@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Menu, User } from "lucide-react";
+import { User } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { getCategoryTree } from "@/modules/catalog";
@@ -19,22 +19,22 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <Container>
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
+        <div className="flex h-[4.5rem] items-center justify-between">
+          <div className="flex items-center gap-10">
             <Link
               href={urls.home()}
-              className="font-serif text-lg md:text-xl font-semibold tracking-[0.12em] text-foreground whitespace-nowrap"
+              className="font-serif text-base tracking-[0.12em] text-foreground whitespace-nowrap md:text-lg"
             >
-              KHAMATNUROV<span className="text-muted-foreground"> MEBEL</span>
+              KHAMATNUROV<span className="text-oak"> MEBEL</span>
             </Link>
 
             <nav
               aria-label="Главное меню"
-              className="hidden md:flex items-center gap-6"
+              className="hidden items-center gap-7 md:flex"
             >
               <Link
                 href={urls.catalog()}
-                className="text-sm font-medium hover:text-primary transition-colors"
+                className="text-xs font-semibold uppercase tracking-[0.09em] hover:text-pine transition-colors"
               >
                 Каталог
               </Link>
@@ -42,21 +42,24 @@ export async function SiteHeader() {
                 <Link
                   key={cat.id}
                   href={urls.category(cat.slug)}
-                  className="text-sm font-medium hover:text-primary transition-colors"
+                  className="text-xs font-semibold uppercase tracking-[0.09em] hover:text-pine transition-colors"
                 >
                   {cat.name}
                 </Link>
               ))}
               <Link
                 href={urls.blog()}
-                className="text-sm font-medium hover:text-primary transition-colors"
+                className="text-xs font-semibold uppercase tracking-[0.09em] hover:text-pine transition-colors"
               >
                 Блог
               </Link>
             </nav>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link href={urls.catalog()} className="mr-1 text-xs font-semibold uppercase tracking-[0.09em] md:hidden">
+              Каталог
+            </Link>
             <Button
               variant="ghost"
               size="icon"
@@ -68,14 +71,6 @@ export async function SiteHeader() {
               </Link>
             </Button>
             <CartButton />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              aria-label="Меню"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
           </div>
         </div>
       </Container>

@@ -55,6 +55,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: postgresql://furniture_user:test_password@localhost:5432/furniture_shop_test
+        run: npm run db:migrate
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql://furniture_user:test_password@localhost:5432/furniture_shop_test
@@ -75,7 +80,23 @@ jobs:
           EMAIL_FROM: test@example.com
           EMAIL_FROM_NAME: Test
           NEXT_PUBLIC_APP_URL: http://localhost:3000
+          RUN_DB_INTEGRATION_TESTS: "true"
         run: npm run test:coverage
+
+      - name: Build production artifact
+        env:
+          DATABASE_URL: postgresql://furniture_user:test_password@localhost:5432/furniture_shop_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: production
+          APP_SECRET: test-secret-min-32-chars-xxxxxxxxxx
+          S3_ENDPOINT: https://s3.selcdn.ru
+          S3_REGION: ru-1
+          S3_BUCKET: test-bucket
+          S3_PUBLIC_HOSTNAME: s3.selcdn.ru
+          EMAIL_FROM: test@example.com
+          EMAIL_FROM_NAME: Test
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+        run: npm run build
 
   # ---------------------------------------------------------------------------
   # CD: build and deploy (main branch only)

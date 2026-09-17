@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "KHAMATNUROV MEBEL — мебель ручной работы",
     short_name: "KHAMATNUROV MEBEL",
     description:
-      "Серийная мебель ручной работы из массива дерева. Доставка по России.",
+      "Тестовая витрина современной предметной мебели из Уфы.",
     start_url: "/",
     display: "standalone",
     lang: "ru-RU",

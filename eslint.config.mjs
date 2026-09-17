@@ -1,27 +1,22 @@
-import { FlatCompat } from "@eslint/eslintrc";
+import { globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 // ---------------------------------------------------------------------------
-// ESLint flat config (ESLint 9). `next lint` is deprecated and its interactive
-// setup breaks CI — we run `eslint .` directly, reusing Next's shareable
-// configs through FlatCompat.
+// ESLint flat config. Next 16 exports native flat configurations; linting runs
+// through the ESLint CLI because Next no longer runs it during `next build`.
 // ---------------------------------------------------------------------------
-
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-});
-
 const config = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-  {
-    ignores: [
-      "node_modules/**",
-      ".next/**",
-      "out/**",
-      "build/**",
-      "next-env.d.ts",
-      "db/migrations/**",
-    ],
-  },
+  ...nextVitals,
+  ...nextTypescript,
+  globalIgnores([
+    "node_modules/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "db/migrations/**",
+  ]),
 ];
 
 export default config;

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const UFA_CITY_NAMES = new Set(["уфа", "г. уфа", "город уфа"]);
+
 export const checkoutSchema = z.object({
   fullName: z.string().min(2, "Введите имя и фамилию"),
   email: z.string().email("Некорректный email"),
@@ -8,7 +10,13 @@ export const checkoutSchema = z.object({
     .min(10, "Введите номер телефона")
     .regex(/^[\d\s\+\-\(\)]+$/, "Некорректный номер телефона"),
   region: z.string().min(2, "Введите регион или область"),
-  city: z.string().min(2, "Введите город"),
+  city: z
+    .string()
+    .trim()
+    .refine(
+      (value) => UFA_CITY_NAMES.has(value.toLocaleLowerCase("ru-RU")),
+      "Сейчас доставка доступна только по Уфе"
+    ),
   street: z.string().min(3, "Введите улицу и номер дома"),
   apartment: z.string().optional(),
   postalCode: z

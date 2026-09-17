@@ -1,6 +1,10 @@
 // Public API of the email module — server-side only.
 
-export { sendOrderConfirmationEmail, sendPaymentReceivedEmails } from "./service";
+export {
+  sendOrderConfirmationEmail,
+  sendOrderCreatedEmails,
+  sendPaymentReceivedEmails,
+} from "./service";
 export { sendEmail } from "./client";
 export type { SendEmailParams, SendEmailResult } from "./client";
 export {

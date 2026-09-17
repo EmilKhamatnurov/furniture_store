@@ -2,11 +2,15 @@ import "server-only";
 import { z } from "zod";
 
 const isProd = process.env["NODE_ENV"] === "production";
+// Next evaluates server modules while compiling. Credentials for integrations
+// such as S3, YuKassa and email are not needed to produce an application
+// artifact, but must remain mandatory when that artifact actually runs.
+const isProductionBuild = process.env["NEXT_PHASE"] === "phase-production-build";
 
 // Helper: required in production, optional in dev/test.
 // Lets you `npm run dev` without having all real credentials yet.
 const prodRequired = (schema: z.ZodString) =>
-  isProd ? schema : z.string().optional().default("");
+  isProd && !isProductionBuild ? schema : z.string().optional().default("");
 
 const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),

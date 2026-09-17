@@ -16,8 +16,9 @@ export default async function CheckoutPage() {
 
   return (
     <Container>
-      <div className="py-8 md:py-12">
-        <h1 className="font-serif text-3xl md:text-4xl font-semibold tracking-tight mb-8">
+      <div className="py-10 md:py-16">
+        <p className="eyebrow mb-4 text-pine">Заказ / 02</p>
+        <h1 className="display-title mb-10 text-5xl md:text-6xl">
           Оформление заказа
         </h1>
         <CheckoutForm zones={zoneOptions} />

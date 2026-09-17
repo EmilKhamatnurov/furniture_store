@@ -33,7 +33,10 @@ export {
   getMinVariantPrice,
   isProductInStock,
   getVariantDimensions,
+  formatVariantOptions,
+  parseVariantOptions,
 } from "./domain";
+export type { VariantOption } from "./domain";
 
 // Re-export DB types for typing across modules (e.g. orders refers to ProductVariant)
 export type {

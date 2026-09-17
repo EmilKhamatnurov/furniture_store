@@ -5,6 +5,8 @@
  * Idempotent: re-running will not duplicate records (uses fixed UUIDs).
  */
 import { config } from "dotenv";
+import { eq, sql } from "drizzle-orm";
+import Redis from "ioredis";
 config({ path: ".env.local" });
 
 // IMPORTANT: db must be imported AFTER dotenv.config() so DATABASE_URL is set.
@@ -16,6 +18,7 @@ const {
   categories,
   products,
   productVariants,
+  productImages,
   pages,
   blogPosts,
   shippingZones,
@@ -24,11 +27,12 @@ const {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
 } = require("@/lib/db/schema") as typeof import("@/lib/db/schema");
 
-// Stable UUIDs so re-runs are idempotent (we use ON CONFLICT DO NOTHING)
+// Stable UUIDs so re-runs are idempotent.
 const CAT_SOFAS = "11111111-0000-0000-0000-000000000001";
 const CAT_ARMCHAIRS = "11111111-0000-0000-0000-000000000002";
 const CAT_TABLES = "11111111-0000-0000-0000-000000000003";
 const CAT_BEDS = "11111111-0000-0000-0000-000000000004";
+const CAT_STORAGE = "11111111-0000-0000-0000-000000000005";
 
 async function seed() {
   console.log("🌱 Seeding database...");
@@ -47,7 +51,7 @@ async function seed() {
           "Авторские диваны ручной работы из натурального дерева и качественного текстиля.",
         metaTitle: "Диваны ручной работы — KHAMATNUROV MEBEL",
         metaDescription:
-          "Купите диван ручной работы. Натуральные материалы, авторский дизайн, доставка по Москве и области.",
+          "Тестовый каталог мебели: характеристики и условия доставки будут уточнены перед production.",
         sortOrder: 10,
         isActive: true,
       },
@@ -80,6 +84,17 @@ async function seed() {
         name: "Кровати",
         description: "Кровати из массива с мягким изголовьем.",
         sortOrder: 40,
+        isActive: true,
+      },
+      {
+        id: CAT_STORAGE,
+        slug: "hranenie",
+        name: "Хранение",
+        description: "ТВ-тумбы и комоды из дубового шпона.",
+        metaTitle: "Тумбы и комоды — KHAMATNUROV MEBEL",
+        metaDescription:
+          "Тестовая витрина тумб и систем хранения: характеристики взяты из предоставленных визуализаций.",
+        sortOrder: 50,
         isActive: true,
       },
     ])
@@ -254,9 +269,8 @@ async function seed() {
     const { variants, ...productRow } = p;
     await db.insert(products).values(productRow).onConflictDoNothing();
 
-    // No images are seeded — the storefront falls back to placeholder.svg when
-    // a product has zero images (see ProductGallery). Real photos are uploaded
-    // via the admin panel.
+    // Most fixture products use the placeholder. KHM Demo 01 below has two
+    // intentionally marked demo images to exercise the gallery path.
 
     for (let i = 0; i < variants.length; i++) {
       const v = variants[i]!;
@@ -276,6 +290,459 @@ async function seed() {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // KHM Demo 01 — canonical vertical-slice fixture.
+  // All characteristics, prices, images and availability are test data.
+  // -------------------------------------------------------------------------
+  const demoProductId = "22222222-0000-0000-0000-000000000005";
+  await db
+    .insert(products)
+    .values({
+      id: demoProductId,
+      slug: "khm-demo-01",
+      name: "Обеденный стол KHM Demo 01",
+      description:
+        "Тестовая модель для проверки конфигуратора, точной цены и складских остатков. Не является производственным ассортиментом.",
+      body: `<p>Это демонстрационная карточка для dev-среды. Реальные материалы, размеры, цены и фотографии будут внесены перед production.</p>`,
+      categoryId: CAT_TABLES,
+      basePriceCopecks: 12900000n,
+      lengthCm: 160,
+      widthCm: 80,
+      heightCm: 75,
+      weightGrams: 42000,
+      metaTitle: "Обеденный стол KHM Demo 01 — тестовая витрина",
+      metaDescription:
+        "Тестовая карточка обеденного стола для проверки конфигураций и наличия.",
+      sortOrder: 0,
+      attributes: [
+        { name: "Статус", value: "Тестовая модель" },
+        { name: "Высота", value: "750 мм" },
+        { name: "География demo", value: "Уфа" },
+      ],
+      isActive: true,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(productVariants)
+    .values([
+      {
+        id: "66666666-0000-0000-0000-000000000001",
+        productId: demoProductId,
+        sku: "DEMO-KHM01-160-NAT",
+        label: "1600×800 / дубовый шпон / Natural Oak / матовый лак",
+        options: [
+          { name: "Размер", value: "1600×800 мм" },
+          { name: "Материал", value: "Дубовый шпон" },
+          { name: "Оттенок", value: "Natural Oak" },
+          { name: "Отделка", value: "Матовый лак" },
+        ],
+        stockQuantity: 2,
+        isActive: true,
+      },
+      {
+        id: "66666666-0000-0000-0000-000000000002",
+        productId: demoProductId,
+        sku: "DEMO-KHM01-160-WAL",
+        label: "1600×800 / дубовый шпон / Walnut / матовый лак",
+        options: [
+          { name: "Размер", value: "1600×800 мм" },
+          { name: "Материал", value: "Дубовый шпон" },
+          { name: "Оттенок", value: "Walnut" },
+          { name: "Отделка", value: "Матовый лак" },
+        ],
+        priceCopecks: 13400000n,
+        stockQuantity: 1,
+        isActive: true,
+      },
+      {
+        id: "66666666-0000-0000-0000-000000000003",
+        productId: demoProductId,
+        sku: "DEMO-KHM01-180-NAT",
+        label: "1800×900 / дубовый шпон / Natural Oak / матовый лак",
+        options: [
+          { name: "Размер", value: "1800×900 мм" },
+          { name: "Материал", value: "Дубовый шпон" },
+          { name: "Оттенок", value: "Natural Oak" },
+          { name: "Отделка", value: "Матовый лак" },
+        ],
+        priceCopecks: 14900000n,
+        stockQuantity: 2,
+        isActive: true,
+      },
+      {
+        id: "66666666-0000-0000-0000-000000000004",
+        productId: demoProductId,
+        sku: "DEMO-KHM01-180-SOLID",
+        label: "1800×900 / массив дуба / Natural Oak / масло",
+        options: [
+          { name: "Размер", value: "1800×900 мм" },
+          { name: "Материал", value: "Массив дуба" },
+          { name: "Оттенок", value: "Natural Oak" },
+          { name: "Отделка", value: "Масло" },
+        ],
+        priceCopecks: 17900000n,
+        stockQuantity: 1,
+        isActive: true,
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(productImages)
+    .values([
+      {
+        id: "77777777-0000-0000-0000-000000000001",
+        productId: demoProductId,
+        s3Key: "demo/hero-table.png",
+        altText: "Тестовая интерьерная фотография обеденного стола KHM Demo 01",
+        sortOrder: 0,
+      },
+      {
+        id: "77777777-0000-0000-0000-000000000002",
+        productId: demoProductId,
+        s3Key: "demo/oak-joint-detail.png",
+        altText: "Тестовая макрофотография соединения стола KHM Demo 01",
+        sortOrder: 1,
+      },
+    ])
+    .onConflictDoNothing();
+
+  // -------------------------------------------------------------------------
+  // Source catalog fixtures — data transcribed from cards supplied on 18.09.
+  // Availability is deliberately DEV-only: it is not a claim about stock.
+  // -------------------------------------------------------------------------
+  const sourceCatalogProducts = [
+    {
+      id: "22222222-0000-0000-0000-000000000006",
+      skuPrefix: "DEV-TV-2000",
+      slug: "tv-tumba-2000",
+      name: "ТВ-тумба 2000",
+      categoryId: CAT_STORAGE,
+      description:
+        "Подвесная ТВ-тумба длиной 2000 мм с тремя ящиками. Выполнена из дубового шпона.",
+      body: `<p>Подвесная ТВ-тумба для лаконичной гостиной. Три ящика помогают убрать технику и мелочи из поля зрения.</p><p>В тестовой витрине представлены три варианта отделки: натуральный, орех и чёрный.</p>`,
+      basePriceCopecks: 6500000n,
+      lengthCm: 200,
+      widthCm: 40,
+      heightCm: 26,
+      weightGrams: 0,
+      metaTitle: "Подвесная ТВ-тумба 2000 из дубового шпона",
+      metaDescription:
+        "ТВ-тумба 2000: дубовый шпон, 3 ящика, подвесная конструкция. Тестовая витрина KHAMATNUROV MEBEL.",
+      imageKey: "catalog/source-2026-09-18/tv-console-2000.jpg",
+      altText: "Подвесная ТВ-тумба 2000 из дубового шпона с тремя ящиками",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "2000 × 400 × 260 мм" },
+        { name: "Конструкция", value: "Подвесная, без ножек" },
+        { name: "Ящики", value: "3" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000007",
+      skuPrefix: "DEV-TV-1200",
+      slug: "tv-tumba-1200",
+      name: "ТВ-тумба 1200",
+      categoryId: CAT_STORAGE,
+      description:
+        "Подвесная ТВ-тумба длиной 1200 мм с двумя ящиками из дубового шпона.",
+      body: `<p>Компактная подвесная ТВ-тумба с двумя ящиками. Подходит для небольших гостиных и медиа-зон.</p><p>В тестовой витрине доступны отделки «Натуральный», «Орех» и «Чёрный».</p>`,
+      basePriceCopecks: 5500000n,
+      lengthCm: 120,
+      widthCm: 40,
+      heightCm: 26,
+      weightGrams: 0,
+      metaTitle: "Подвесная ТВ-тумба 1200 из дубового шпона",
+      metaDescription:
+        "ТВ-тумба 1200: дубовый шпон, 2 ящика, подвесная конструкция. Тестовая витрина KHAMATNUROV MEBEL.",
+      imageKey: "catalog/source-2026-09-18/tv-console-1200.jpg",
+      altText: "Подвесная ТВ-тумба 1200 из дубового шпона с двумя ящиками",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "1200 × 400 × 260 мм" },
+        { name: "Конструкция", value: "Подвесная, без ножек" },
+        { name: "Ящики", value: "2" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000008",
+      skuPrefix: "DEV-DRS-1600",
+      slug: "komod-1600",
+      name: "Комод 1600",
+      categoryId: CAT_STORAGE,
+      description:
+        "Комод длиной 1600 мм с восемью ящиками: дубовый шпон и ножки из массива дуба.",
+      body: `<p>Вместительный комод с восемью ящиками. Корпус выполнен из дубового шпона, ножки — из массива дуба.</p><p>Тестовые варианты отделки: натуральный, орех и чёрный.</p>`,
+      basePriceCopecks: 8900000n,
+      lengthCm: 160,
+      widthCm: 45,
+      heightCm: 90,
+      weightGrams: 0,
+      metaTitle: "Комод 1600 с восемью ящиками из дубового шпона",
+      metaDescription:
+        "Комод 1600: 8 ящиков, дубовый шпон и ножки из массива дуба. Тестовая витрина KHAMATNUROV MEBEL.",
+      imageKey: "catalog/source-2026-09-18/dresser-1600.jpg",
+      altText: "Комод 1600 из дубового шпона с восемью ящиками на ножках из массива дуба",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "1600 × 450 × 900 мм" },
+        { name: "Ножки", value: "Массив дуба" },
+        { name: "Ящики", value: "8" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000009",
+      skuPrefix: "DEV-TBL-ROUND-1000",
+      slug: "stol-kruglyi-1000",
+      name: "Стол круглый 1000",
+      categoryId: CAT_TABLES,
+      description:
+        "Круглый стол диаметром 1000 мм из дубового шпона на ножках из массива дуба.",
+      body: `<p>Круглый стол диаметром 1000 мм. Столешница выполнена из дубового шпона, ножки — из массива дуба.</p><p>Карточка сохранена в dev-базе, но не опубликована: для витрины нужен подходящий рендер без крупной текстовой плашки.</p>`,
+      basePriceCopecks: 4600000n,
+      lengthCm: 100,
+      widthCm: 100,
+      heightCm: 75,
+      weightGrams: 0,
+      metaTitle: "Круглый стол 1000 из дубового шпона",
+      metaDescription:
+        "Круглый стол 1000: дубовый шпон и ножки из массива дуба. Черновая карточка KHAMATNUROV MEBEL.",
+      imageKey: "catalog/source-2026-09-18/round-table-1000.jpg",
+      altText: "Круглый стол 1000 из дубового шпона на ножках из массива дуба",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "1000 × 1000 × 750 мм" },
+        { name: "Ножки", value: "Массив дуба" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000010",
+      skuPrefix: "DEV-COFFEE-350",
+      slug: "stol-kofeynyi-350",
+      name: "Стол кофейный 350",
+      categoryId: CAT_TABLES,
+      description:
+        "Компактный кофейный стол 350 мм из дубового шпона с ножками из массива дуба.",
+      body: `<p>Небольшой кофейный стол для кресла или дивана. Съёмная столешница на магнитах может использоваться как поднос.</p><p>В тестовой витрине показаны натуральный, ореховый и чёрный варианты отделки.</p>`,
+      basePriceCopecks: 2600000n,
+      lengthCm: 35,
+      widthCm: 35,
+      heightCm: 60,
+      weightGrams: 0,
+      metaTitle: "Кофейный стол 350 из дубового шпона",
+      metaDescription:
+        "Кофейный стол 350: дубовый шпон, ножки из массива дуба, съёмная столешница-поднос. Тестовая витрина.",
+      imageKey: "catalog/source-2026-09-18/coffee-table-350.jpg",
+      altText: "Кофейный стол 350 из дубового шпона на ножках из массива дуба",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "350 × 350 × 600 мм" },
+        { name: "Ножки", value: "Массив дуба" },
+        { name: "Ящики", value: "0" },
+        { name: "Особенность", value: "Столешница на магнитах может использоваться как поднос" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000011",
+      skuPrefix: "DEV-DINE-4LEG-1800",
+      slug: "stol-kuhonnyi-1800-4-opory",
+      name: "Стол кухонный 1800 — 4 опоры",
+      categoryId: CAT_TABLES,
+      description:
+        "Кухонный стол 1800 мм в минималистичной геометрии: дубовый шпон и четыре ножки из массива дуба.",
+      body: `<p>Кухонный стол на четырёх опорах для обеденной зоны. Столешница выполнена из дубового шпона, ножки — из массива дуба.</p><p>В тестовой витрине доступны три варианта отделки: натуральный, орех и чёрный.</p>`,
+      basePriceCopecks: 7600000n,
+      lengthCm: 180,
+      widthCm: 80,
+      heightCm: 75,
+      weightGrams: 0,
+      metaTitle: "Кухонный стол 1800 на четырёх опорах",
+      metaDescription:
+        "Кухонный стол 1800 × 800 мм: дубовый шпон, четыре ножки из массива дуба. Тестовая витрина KHAMATNUROV MEBEL.",
+      imageKey: "catalog/source-2026-09-18/dining-table-four-legs-1800.jpg",
+      altText: "Кухонный стол 1800 из дубового шпона на четырёх ножках из массива дуба",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "1800 × 800 × 750 мм" },
+        { name: "Ножки", value: "Массив дуба" },
+        { name: "Ящики", value: "0" },
+        { name: "Стиль", value: "Минимализм" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000012",
+      skuPrefix: "DEV-DINE-SPLAY-1800",
+      slug: "stol-kuhonnyi-1800-naklonnye-opory",
+      name: "Стол кухонный 1800 — наклонные опоры",
+      categoryId: CAT_TABLES,
+      description:
+        "Кухонный стол 1800 мм с наклонными опорами: дубовый шпон и ножки из массива дуба.",
+      body: `<p>Кухонный стол с выразительной геометрией наклонных опор. Столешница выполнена из дубового шпона, ножки — из массива дуба.</p><p>Тестовые варианты отделки: натуральный, орех и чёрный.</p>`,
+      basePriceCopecks: 8200000n,
+      lengthCm: 180,
+      widthCm: 80,
+      heightCm: 75,
+      weightGrams: 0,
+      metaTitle: "Кухонный стол 1800 с наклонными опорами",
+      metaDescription:
+        "Кухонный стол 1800 × 800 мм: дубовый шпон и наклонные ножки из массива дуба. Тестовая витрина.",
+      imageKey: "catalog/source-2026-09-18/dining-table-splayed-legs-1800.jpg",
+      altText: "Кухонный стол 1800 из дубового шпона на наклонных ножках из массива дуба",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "1800 × 800 × 750 мм" },
+        { name: "Ножки", value: "Массив дуба" },
+        { name: "Ящики", value: "0" },
+        { name: "Стиль", value: "Минимализм" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000013",
+      skuPrefix: "DEV-DINE-PEDESTAL-1800",
+      slug: "stol-kuhonnyi-1800-opory",
+      name: "Стол кухонный 1800 — две опоры",
+      categoryId: CAT_TABLES,
+      description:
+        "Кухонный стол 1800 мм на двух опорах из дубового шпона и массива дуба.",
+      body: `<p>Кухонный стол на двух опорах для выразительной обеденной зоны. Столешница выполнена из дубового шпона, ножки — из массива дуба.</p><p>В dev-каталоге доступны тестовые варианты: натуральный, орех и чёрный.</p>`,
+      basePriceCopecks: 9600000n,
+      lengthCm: 180,
+      widthCm: 80,
+      heightCm: 75,
+      weightGrams: 0,
+      metaTitle: "Кухонный стол 1800 на двух опорах",
+      metaDescription:
+        "Кухонный стол 1800 × 800 мм: дубовый шпон, две опоры из массива дуба. Тестовая витрина.",
+      imageKey: "catalog/source-2026-09-18/dining-table-pedestal-1800.jpg",
+      altText: "Кухонный стол 1800 из дубового шпона на двух опорах",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "1800 × 800 × 750 мм" },
+        { name: "Ножки", value: "Массив дуба" },
+        { name: "Ящики", value: "0" },
+        { name: "Стиль", value: "Минимализм" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000014",
+      skuPrefix: "DEV-COFFEE-1000",
+      slug: "stol-zhurnalnyi-1000",
+      name: "Стол журнальный 1000",
+      categoryId: CAT_TABLES,
+      description:
+        "Журнальный стол 1000 мм из дубового шпона в минималистичной геометрии.",
+      body: `<p>Журнальный стол для гостиной. Столешница и ножки выполнены из дубового шпона; конструкция не предусматривает ящики.</p><p>В тестовой витрине представлены натуральный, ореховый и чёрный варианты отделки.</p>`,
+      basePriceCopecks: 3600000n,
+      lengthCm: 100,
+      widthCm: 50,
+      heightCm: 60,
+      weightGrams: 0,
+      metaTitle: "Журнальный стол 1000 из дубового шпона",
+      metaDescription:
+        "Журнальный стол 1000 × 500 мм из дубового шпона. Тестовая витрина KHAMATNUROV MEBEL.",
+      imageKey: "catalog/source-2026-09-18/coffee-table-1000.jpg",
+      altText: "Журнальный стол 1000 из дубового шпона",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "1000 × 500 × 600 мм" },
+        { name: "Ножки", value: "Шпон дуба" },
+        { name: "Ящики", value: "0" },
+        { name: "Стиль", value: "Минимализм" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+    {
+      id: "22222222-0000-0000-0000-000000000015",
+      skuPrefix: "DEV-DESK-2200",
+      slug: "stol-direktora-2200",
+      name: "Стол директора 2200",
+      categoryId: CAT_TABLES,
+      description:
+        "Стол директора длиной 2200 мм: дубовый шпон, три ящика и классическая геометрия.",
+      body: `<p>Просторный рабочий стол для кабинета. Корпус и ножки выполнены из дубового шпона, предусмотрены три ящика.</p><p>В тестовой витрине представлены натуральный, ореховый и чёрный варианты отделки.</p>`,
+      basePriceCopecks: 18300000n,
+      lengthCm: 220,
+      widthCm: 70,
+      heightCm: 75,
+      weightGrams: 0,
+      metaTitle: "Стол директора 2200 из дубового шпона",
+      metaDescription:
+        "Стол директора 2200: дубовый шпон, 3 ящика, классический вид. Тестовая витрина KHAMATNUROV MEBEL.",
+      imageKey: "catalog/source-2026-09-18/executive-desk-2200.jpg",
+      altText: "Стол директора 2200 из дубового шпона с тремя ящиками",
+      attributes: [
+        { name: "Материал", value: "Шпон дуба" },
+        { name: "Габариты (Ш × Г × В)", value: "2200 × 700 × 750 мм" },
+        { name: "Ножки", value: "Шпон дуба" },
+        { name: "Ящики", value: "3" },
+        { name: "Стиль", value: "Классический" },
+        { name: "Статус каталога", value: "Тестовая доступность" },
+      ],
+    },
+  ];
+
+  const sourceColors = ["Натуральный", "Орех", "Чёрный"];
+  for (const [productIndex, sourceProduct] of sourceCatalogProducts.entries()) {
+    const { skuPrefix, imageKey, altText, ...productRow } = sourceProduct;
+    await db
+      .insert(products)
+      .values({ ...productRow, isActive: true })
+      .onConflictDoUpdate({
+        target: products.id,
+        set: {
+          ...productRow,
+          isActive: true,
+          isArchived: false,
+          updatedAt: new Date(),
+        },
+      });
+
+    await db
+      .insert(productImages)
+      .values({
+        id: `88888888-0000-0000-0000-${(productIndex + 1).toString().padStart(12, "0")}`,
+        productId: sourceProduct.id,
+        s3Key: imageKey,
+        altText,
+        sortOrder: 0,
+      })
+      .onConflictDoNothing();
+
+    await db
+      .insert(productVariants)
+      .values(
+        sourceColors.map((color, colorIndex) => ({
+          id: `99999999-0000-0000-0000-${(productIndex * 3 + colorIndex + 1)
+            .toString()
+            .padStart(12, "0")}`,
+          productId: sourceProduct.id,
+          sku: `${skuPrefix}-${colorIndex + 1}`,
+          label: color,
+          options: [{ name: "Цвет", value: color }],
+          stockQuantity: 1,
+          isActive: true,
+        }))
+      )
+      .onConflictDoNothing();
+  }
+
+  // The supplied preview for the round table contains a very small embedded
+  // render and a dominant text block. Keep its parsed data in the inventory,
+  // but hide this dev card until a suitable product image is provided.
+  await db
+    .update(products)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(eq(products.id, "22222222-0000-0000-0000-000000000009"));
+
   console.log("✓ Products, variants, and images seeded");
 
   // -------------------------------------------------------------------------
@@ -288,12 +755,10 @@ async function seed() {
       slug: "delivery",
       title: "Доставка и оплата",
       metaTitle: "Доставка и оплата — KHAMATNUROV MEBEL",
-      metaDescription: "Условия доставки мебели по Москве и области, способы оплаты.",
-      body: `<p>Доставляем мебель по Москве и Московской области. Сроки и стоимость зависят от габаритов заказа и адреса.</p>
-<h2>Сроки</h2>
-<ul><li>Москва в пределах МКАД — 2–4 рабочих дня</li><li>Московская область — 3–7 рабочих дней</li></ul>
-<h2>Оплата</h2>
-<p>Оплата онлайн банковской картой через защищённый сервис ЮKassa. После оплаты с вами свяжется менеджер для согласования времени доставки.</p>`,
+      metaDescription: "Тестовые условия доставки и оплаты в Уфе.",
+      body: `<p>Это test/demo-страница, не коммерческое предложение.</p>
+<h2>Доставка</h2><p>В dev-сценарии доставка в черте Уфы стоит 2 500 ₽. Реальные тарифы будут внесены перед production.</p>
+<h2>Оплата</h2><p>Для проверки потока используется sandbox ЮKassa. Будущая схема оплаты пока не утверждена.</p>`,
     },
     {
       id: `${PAGE_NS}02`,
@@ -301,29 +766,23 @@ async function seed() {
       title: "Возврат и обмен",
       metaTitle: "Возврат и обмен — KHAMATNUROV MEBEL",
       metaDescription: "Порядок возврата и обмена мебели надлежащего и ненадлежащего качества.",
-      body: `<p>Вы можете вернуть товар надлежащего качества в течение 7 дней с момента получения, если он не был в употреблении и сохранён товарный вид.</p>
-<h2>Как оформить возврат</h2>
-<ol><li>Свяжитесь с нами по телефону или email</li><li>Опишите причину возврата</li><li>Согласуйте дату вывоза</li></ol>
-<p>Мебель, изготовленная по индивидуальному заказу, возврату и обмену не подлежит.</p>`,
+      body: `<p>Тестовая страница. Условия возврата и обмена не утверждены и будут подготовлены перед production.</p>`,
     },
     {
       id: `${PAGE_NS}03`,
       slug: "about",
       title: "О компании",
       metaTitle: "О компании — KHAMATNUROV MEBEL",
-      metaDescription: "KHAMATNUROV MEBEL: серийная мебель ручной работы из массива.",
-      body: `<p>«KHAMATNUROV MEBEL» — это серийная мебель ручной работы из массива дерева и качественных тканей.</p>
-<p>Мы работаем с 2015 года и сделали уютнее уже более 5000 домов. Каждое изделие проходит контроль качества перед отправкой.</p>`,
+      metaDescription: "Тестовая витрина KHAMATNUROV MEBEL.",
+      body: `<p>KHAMATNUROV MEBEL — test/demo-витрина будущего интернет-магазина предметной мебели из Уфы.</p><p>Биография мастерской и факты о производстве будут добавлены после получения реальных данных.</p>`,
     },
     {
       id: `${PAGE_NS}04`,
       slug: "contacts",
       title: "Контакты",
       metaTitle: "Контакты — KHAMATNUROV MEBEL",
-      metaDescription: "Телефон, email и адрес шоурума Мебельной мастерской.",
-      body: `<p>Телефон: <a href="tel:+74950000000">+7 (495) 000-00-00</a></p>
-<p>Email: <a href="mailto:info@example.com">info@example.com</a></p>
-<p>Шоурум: Москва, ул. Примерная, д. 1. Ежедневно с 10:00 до 21:00.</p>`,
+      metaDescription: "Тестовая страница контактов KHAMATNUROV MEBEL.",
+      body: `<p>Тестовая страница: телефон, email и адрес мастерской в Уфе появятся после получения реальных данных.</p>`,
     },
     {
       id: `${PAGE_NS}05`,
@@ -331,9 +790,7 @@ async function seed() {
       title: "Публичная оферта",
       metaTitle: "Публичная оферта — KHAMATNUROV MEBEL",
       metaDescription: "Условия публичной оферты интернет-магазина KHAMATNUROV MEBEL.",
-      body: `<p>Настоящий документ является публичной офертой и определяет условия продажи товаров через интернет-магазин.</p>
-<h2>1. Общие положения</h2><p>Оформляя заказ, покупатель принимает условия настоящей оферты в полном объёме.</p>
-<h2>2. Предмет</h2><p>Продавец обязуется передать товар, а покупатель — принять и оплатить его.</p>`,
+      body: `<p>Тестовая заглушка. Этот текст не является публичной офертой. Документ будет подготовлен после выбора юрлица, схемы оплаты и доставки.</p>`,
     },
     {
       id: `${PAGE_NS}06`,
@@ -341,9 +798,7 @@ async function seed() {
       title: "Политика конфиденциальности",
       metaTitle: "Политика конфиденциальности — KHAMATNUROV MEBEL",
       metaDescription: "Как мы обрабатываем и защищаем персональные данные (152-ФЗ).",
-      body: `<p>Мы обрабатываем персональные данные в соответствии с Федеральным законом №152-ФЗ «О персональных данных».</p>
-<h2>Какие данные мы собираем</h2><ul><li>имя и контактные данные</li><li>адрес доставки</li><li>историю заказов</li></ul>
-<p>Данные используются исключительно для обработки заказов и не передаются третьим лицам, кроме служб доставки и платёжных систем.</p>`,
+      body: `<p>Тестовая заглушка для будущей политики конфиденциальности. До production её нужно заменить документом, проверенным юристом.</p>`,
     },
   ];
 
@@ -351,7 +806,18 @@ async function seed() {
     await db
       .insert(pages)
       .values({ ...page, isPublished: true })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: pages.id,
+        set: {
+          slug: page.slug,
+          title: page.title,
+          body: page.body,
+          metaTitle: page.metaTitle,
+          metaDescription: page.metaDescription,
+          isPublished: true,
+          updatedAt: new Date(),
+        },
+      });
   }
   console.log(`✓ ${staticPages.length} static pages seeded`);
 
@@ -403,30 +869,35 @@ async function seed() {
   // -------------------------------------------------------------------------
   // Shipping — zones, tariff brackets, volumetric divisor
   // -------------------------------------------------------------------------
-  const ZONE_MSK = "55555555-0000-0000-0000-000000000001";
-  const ZONE_MO50 = "55555555-0000-0000-0000-000000000002";
-  const ZONE_MO100 = "55555555-0000-0000-0000-000000000003";
+  const ZONE_UFA_CITY = "55555555-0000-0000-0000-000000000001";
+  const ZONE_UFA_OUTER = "55555555-0000-0000-0000-000000000002";
+  const ZONE_UFA_PICKUP = "55555555-0000-0000-0000-000000000003";
 
   await db
     .insert(shippingZones)
     .values([
-      { id: ZONE_MSK, name: "Москва (в пределах МКАД)", sortOrder: 10, isActive: true },
-      { id: ZONE_MO50, name: "Московская область до 50 км", sortOrder: 20, isActive: true },
-      { id: ZONE_MO100, name: "Московская область 50–100 км", sortOrder: 30, isActive: true },
+      { id: ZONE_UFA_CITY, name: "Уфа — в черте города (demo)", sortOrder: 10, isActive: true },
+      { id: ZONE_UFA_OUTER, name: "Уфа — пригород (demo)", sortOrder: 20, isActive: true },
+      { id: ZONE_UFA_PICKUP, name: "Самовывоз из Уфы (demo)", sortOrder: 30, isActive: true },
     ])
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: shippingZones.id,
+      set: { name: sql`excluded.name`, sortOrder: sql`excluded.sort_order`, isActive: true },
+    });
 
   // [zoneId, idSuffix, maxWeightKg, priceCopecks, extraPerKgCopecks]
+  // Keep all historical fixture IDs up to date as well: a re-seed must not
+  // leave older geographic brackets available in an existing dev database.
   const tariffRows: Array<[string, string, number, bigint, bigint]> = [
-    [ZONE_MSK, "11", 10, 50000n, 0n],
-    [ZONE_MSK, "12", 30, 90000n, 0n],
-    [ZONE_MSK, "13", 80, 150000n, 2000n],
-    [ZONE_MO50, "21", 10, 90000n, 0n],
-    [ZONE_MO50, "22", 30, 150000n, 0n],
-    [ZONE_MO50, "23", 80, 250000n, 3000n],
-    [ZONE_MO100, "31", 10, 150000n, 0n],
-    [ZONE_MO100, "32", 30, 250000n, 0n],
-    [ZONE_MO100, "33", 80, 400000n, 4000n],
+    [ZONE_UFA_CITY, "11", 10, 250000n, 0n],
+    [ZONE_UFA_CITY, "12", 30, 250000n, 0n],
+    [ZONE_UFA_CITY, "13", 9999, 250000n, 0n],
+    [ZONE_UFA_OUTER, "21", 10, 350000n, 0n],
+    [ZONE_UFA_OUTER, "22", 30, 350000n, 0n],
+    [ZONE_UFA_OUTER, "23", 9999, 350000n, 0n],
+    [ZONE_UFA_PICKUP, "31", 10, 0n, 0n],
+    [ZONE_UFA_PICKUP, "32", 30, 0n, 0n],
+    [ZONE_UFA_PICKUP, "33", 9999, 0n, 0n],
   ];
   await db
     .insert(shippingTariffs)
@@ -440,7 +911,16 @@ async function seed() {
         isActive: true,
       }))
     )
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: shippingTariffs.id,
+      set: {
+        zoneId: sql`excluded.zone_id`,
+        maxWeightKg: sql`excluded.max_weight_kg`,
+        priceCopecks: sql`excluded.price_copecks`,
+        extraPerKgCopecks: sql`excluded.extra_per_kg_copecks`,
+        isActive: true,
+      },
+    });
 
   await db
     .insert(shippingSettings)
@@ -452,6 +932,34 @@ async function seed() {
     .onConflictDoNothing();
 
   console.log("✓ Shipping zones, tariffs, divisor seeded");
+
+  // Seed bypasses admin actions, so it must explicitly invalidate the cached
+  // public lists. Otherwise a running dev server can show an older catalog
+  // until the five-minute TTL expires.
+  try {
+    const redisUrl = process.env.REDIS_URL;
+    if (redisUrl) {
+      const redis = new Redis(redisUrl, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 1,
+      });
+      await redis.connect();
+      await redis.del(
+        "products:category:divany",
+        "products:category:kresla",
+        "products:category:stoly",
+        "products:category:krovati",
+        "products:category:hranenie",
+        "products:all",
+        "categories:all",
+        ...sourceCatalogProducts.map((product) => `product:${product.slug}`)
+      );
+      await redis.quit();
+      console.log("✓ Catalog cache invalidated");
+    }
+  } catch (err) {
+    console.warn("⚠ Catalog cache was not invalidated:", err);
+  }
 
   console.log("✅ Done");
 }

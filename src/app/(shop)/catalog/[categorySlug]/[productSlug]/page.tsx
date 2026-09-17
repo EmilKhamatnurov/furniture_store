@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -42,9 +43,9 @@ export async function generateMetadata({
   const description =
     product.metaDescription ??
     product.description ??
-    `${product.name} — мебель ручной работы от ${kopecksToRubFloat(
+    `${product.name} — тестовая карточка мебели от ${kopecksToRubFloat(
       minPrice
-    ).toLocaleString("ru-RU")} ₽. Доставка по Москве и области.`;
+    ).toLocaleString("ru-RU")} ₽. География demo — Уфа.`;
 
   return {
     title: product.metaTitle ?? product.name,
@@ -105,10 +106,10 @@ export default async function ProductPage({ params }: PageProps) {
       />
 
       <Container>
-        <div className="py-6 md:py-10">
-          <Breadcrumbs items={breadcrumbs} className="mb-6" />
+        <div className="py-8 md:py-12 lg:py-16">
+          <Breadcrumbs items={breadcrumbs} className="mb-8" />
 
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.72fr)] lg:gap-16">
             <div>
               <ProductGallery
                 images={product.images}
@@ -116,36 +117,38 @@ export default async function ProductPage({ params }: PageProps) {
               />
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-8 lg:pt-4">
               <header>
-                <p className="text-sm text-muted-foreground mb-2">
+                <p className="eyebrow mb-4 text-pine">
                   {product.category.name}
                 </p>
-                <h1 className="font-serif text-3xl md:text-4xl font-semibold tracking-tight">
+                <h1 className="display-title text-4xl sm:text-5xl lg:text-6xl">
                   {product.name}
                 </h1>
               </header>
 
               {product.description && (
-                <p className="text-base text-muted-foreground leading-relaxed">
+                <p className="max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
                   {product.description}
                 </p>
               )}
 
-              <VariantPicker
-                product={product}
-                variants={product.variants}
-                primaryImageS3Key={product.images[0]?.s3Key ?? null}
-              />
+              <Suspense fallback={<div className="h-72 border-y border-border" />}>
+                <VariantPicker
+                  product={product}
+                  variants={product.variants}
+                  primaryImageS3Key={product.images[0]?.s3Key ?? null}
+                />
+              </Suspense>
 
               {product.attributes && product.attributes.length > 0 && (
-                <div className="pt-6 border-t border-border">
-                  <h2 className="text-sm font-semibold mb-3">Характеристики</h2>
+                <div className="border-t border-border pt-7">
+                  <h2 className="eyebrow mb-4">Характеристики</h2>
                   <dl className="grid grid-cols-1 gap-2 text-sm">
                     {product.attributes.map((attr) => (
                       <div
                         key={attr.name}
-                        className="flex justify-between border-b border-border/50 py-1.5"
+                        className="flex justify-between gap-6 border-b border-border/50 py-2.5"
                       >
                         <dt className="text-muted-foreground">{attr.name}</dt>
                         <dd className="font-medium">{attr.value}</dd>
@@ -158,8 +161,8 @@ export default async function ProductPage({ params }: PageProps) {
           </div>
 
           {product.body && (
-            <section className="mt-16 max-w-prose">
-              <h2 className="font-serif text-2xl font-semibold mb-4">
+            <section className="mt-20 max-w-prose border-t border-border pt-10">
+              <h2 className="display-title mb-5 text-3xl">
                 Описание
               </h2>
               {/* Admin-authored HTML — sanitized server-side in CmsHtml */}

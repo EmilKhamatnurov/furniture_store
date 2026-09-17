@@ -54,7 +54,7 @@ export function ZoneForm({ id, name, sortOrder, isActive }: ZoneFormProps) {
       {id && <input type="hidden" name="id" value={id} />}
       <div className="flex-1 min-w-[180px] space-y-1.5">
         <Label>Название зоны</Label>
-        <Input name="name" defaultValue={name} placeholder="Москва (в пределах МКАД)" required />
+        <Input name="name" defaultValue={name} placeholder="Уфа — в черте города" required />
       </div>
       <div className="space-y-1.5">
         <Label>Порядок</Label>

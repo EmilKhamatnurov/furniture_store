@@ -9,7 +9,9 @@ import {
   clearAdminCookie,
   updateOrderStatus,
   addOrderNote,
+  createProductAdmin,
   updateProductAdmin,
+  createVariantAdmin,
   updateVariantAdmin,
   addProductImageAdmin,
   deleteProductImageAdmin,
@@ -17,6 +19,7 @@ import {
   moveProductImageAdmin,
   updateProductImageAltAdmin,
 } from "@/modules/admin";
+import { parseVariantOptions } from "@/modules/catalog";
 import { putPublicObject, deletePublicObject } from "@/lib/storage";
 import { rubToKopecks } from "@/lib/utils/money";
 import type { OrderStatus } from "@/modules/orders/db/schema";
@@ -107,6 +110,41 @@ const productSchema = z.object({
   isArchived: z.string().optional(),
 });
 
+const productCreateSchema = productSchema
+  .omit({ productId: true, isActive: true, isArchived: true })
+  .extend({
+    slug: z
+      .string()
+      .min(2, "Введите slug")
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug: строчные латинские буквы, цифры и дефис"),
+  });
+
+export async function createProductAction(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = productCreateSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные." };
+  }
+
+  try {
+    const productId = await createProductAdmin({
+      slug: parsed.data.slug,
+      name: parsed.data.name,
+      description: parsed.data.description?.trim() || null,
+      basePriceCopecks: rubToKopecks(parsed.data.priceRub),
+      categoryId: parsed.data.categoryId,
+    });
+    revalidatePath("/admin/products");
+    redirect(`/admin/products/${productId}`);
+  } catch (err) {
+    console.error("[admin] createProduct failed:", err);
+    return { error: "Не удалось создать товар. Возможно, slug уже занят." };
+  }
+}
+
 export async function updateProductAction(
   _prev: ActionResult | null,
   formData: FormData
@@ -142,6 +180,7 @@ const variantSchema = z.object({
   priceRub: z.string().optional(), // empty → inherit base price (null)
   stockQuantity: z.coerce.number().int().nonnegative("Остаток ≥ 0"),
   isActive: z.string().optional(),
+  optionsText: z.string().max(2000, "Слишком много параметров"),
 });
 
 export async function updateVariantAction(
@@ -156,16 +195,68 @@ export async function updateVariantAction(
   }
 
   const { variantId, productId, priceRub, stockQuantity, isActive } = parsed.data;
+  const options = parseVariantOptions(parsed.data.optionsText);
+  if (!options) {
+    return { error: "Укажите параметры построчно: например, «Цвет: Орех»." };
+  }
   const priceCopecks =
     priceRub && priceRub.trim() !== "" ? rubToKopecks(Number(priceRub)) : null;
 
   await updateVariantAdmin(variantId, {
+    options,
     priceCopecks,
     stockQuantity,
     isActive: isActive === "on",
   });
 
   revalidatePath(`/admin/products/${productId}`);
+  return { success: true };
+}
+
+const variantCreateSchema = variantSchema
+  .omit({ variantId: true })
+  .extend({
+    sku: z
+      .string()
+      .min(2, "Введите SKU")
+      .max(100, "SKU слишком длинный")
+      .regex(/^[A-Za-z0-9_-]+$/, "SKU: латинские буквы, цифры, дефис и _"),
+    label: z.string().min(2, "Введите название варианта").max(160),
+  });
+
+export async function createVariantAction(
+  _prev: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = variantCreateSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные." };
+  }
+  const options = parseVariantOptions(parsed.data.optionsText);
+  if (!options) {
+    return { error: "Укажите параметры построчно: например, «Цвет: Орех»." };
+  }
+
+  try {
+    await createVariantAdmin({
+      productId: parsed.data.productId,
+      sku: parsed.data.sku,
+      label: parsed.data.label,
+      options,
+      priceCopecks:
+        parsed.data.priceRub && parsed.data.priceRub.trim() !== ""
+          ? rubToKopecks(Number(parsed.data.priceRub))
+          : null,
+      stockQuantity: parsed.data.stockQuantity,
+      isActive: parsed.data.isActive === "on",
+    });
+  } catch (err) {
+    console.error("[admin] createVariant failed:", err);
+    return { error: "Не удалось создать вариант. Возможно, SKU уже занят." };
+  }
+
+  revalidatePath(`/admin/products/${parsed.data.productId}`);
   return { success: true };
 }
 

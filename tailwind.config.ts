@@ -45,6 +45,11 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        pine: {
+          DEFAULT: "hsl(var(--pine))",
+          foreground: "hsl(var(--pine-foreground))",
+        },
+        oak: "hsl(var(--oak))",
       },
       borderRadius: {
         lg: "var(--radius)",

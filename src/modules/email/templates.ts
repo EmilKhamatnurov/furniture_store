@@ -170,16 +170,25 @@ export function renderPaymentReceived(order: OrderWithItems): RenderedEmail {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Admin notification — new paid order needs processing
+// 3. Admin notification — delivery team sees an order as soon as it is created
 // ---------------------------------------------------------------------------
-export function renderAdminNewOrder(order: OrderWithItems): RenderedEmail {
-  const orderUrl = `${APP_URL}/orders/${order.id}?t=${createOrderAccessToken(order.id)}`;
+export function renderAdminNewOrder(
+  order: OrderWithItems,
+  options: { paymentReceived?: boolean } = {}
+): RenderedEmail {
+  const paymentReceived = options.paymentReceived ?? order.status === "paid";
+  // Admin email goes to the protected dashboard. Do not distribute a guest
+  // capability token through an operational inbox.
+  const orderUrl = `${APP_URL}/admin/orders/${order.id}`;
   const addr = order.shippingAddress;
-  const subject = `🛋 Новый оплаченный заказ ${order.number}`;
+  const orderState = paymentReceived ? "оплачен" : "ожидает оплаты";
+  const subject = `🛋 Новый заказ ${order.number} — ${orderState}`;
 
   const html = layout({
-    heading: `Новый заказ ${order.number}`,
-    preheader: `${formatRub(order.totalCopecks)} · ${addr.fullName}`,
+    heading: paymentReceived
+      ? `Оплата заказа ${order.number} получена`
+      : `Новый заказ ${order.number}`,
+    preheader: `${formatRub(order.totalCopecks)} · ${addr.fullName} · ${orderState}`,
     body: `
 ${itemsTableHtml(order.items)}
 <table role="presentation" width="100%" style="margin:4px 0 20px;">
@@ -196,7 +205,7 @@ ${order.customerNote ? `<p style="margin:0 0 20px;font-size:14px;"><strong>Ко�
 </a>`,
   });
 
-  const text = `Новый оплаченный заказ ${order.number}
+  const text = `Заказ ${order.number} — ${orderState}
 
 Состав:
 ${itemsTextLines(order.items)}

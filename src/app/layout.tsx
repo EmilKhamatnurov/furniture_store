@@ -1,23 +1,22 @@
 import type { Metadata } from "next";
-import { Playfair_Display, DM_Sans } from "next/font/google";
+import { Manrope, Prata } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/modules/cart";
 import { YandexMetrika } from "@/components/analytics/metrika";
 
 // ---------------------------------------------------------------------------
-// Fonts — Playfair Display (serif display) + DM Sans (UI/body).
+// Fonts — Prata (display) + Manrope (UI/body), both with Cyrillic support.
 // Exposed as CSS variables and wired to Tailwind's font-serif / font-sans.
 // ---------------------------------------------------------------------------
-const playfair = Playfair_Display({
+const prata = Prata({
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
+  weight: "400",
   variable: "--font-serif",
   display: "swap",
 });
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
+const manrope = Manrope({
+  subsets: ["latin", "cyrillic"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
   display: "swap",
@@ -37,7 +36,7 @@ export const metadata: Metadata = {
     default: "KHAMATNUROV MEBEL — мебель ручной работы",
   },
   description:
-    "Серийная мебель ручной работы с доставкой по Москве и МО. Качественные материалы, авторский дизайн.",
+    "Современная предметная мебель собственного дизайна. Тестовая витрина мастерской из Уфы.",
   robots: {
     index: true,
     follow: true,
@@ -67,7 +66,7 @@ export default function RootLayout({
     <html
       lang="ru"
       suppressHydrationWarning
-      className={`${playfair.variable} ${dmSans.variable}`}
+      className={`${prata.variable} ${manrope.variable}`}
     >
       <body className="font-sans antialiased">
         <YandexMetrika />

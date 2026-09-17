@@ -5,6 +5,7 @@ import { getProductAdmin, listCategoriesAdmin } from "@/modules/admin";
 import { ProductForm } from "./product-form";
 import { VariantForm } from "./variant-form";
 import { ProductImages } from "./product-images";
+import { VariantCreateForm } from "./variant-create-form";
 
 export const dynamic = "force-dynamic";
 
@@ -90,10 +91,15 @@ export default async function AdminProductEditPage({ params }: PageProps) {
                 priceRub={v.priceCopecks != null ? String(Number(v.priceCopecks) / 100) : ""}
                 stockQuantity={v.stockQuantity}
                 isActive={v.isActive}
+                options={v.options}
               />
             ))}
-          </div>
+            </div>
         )}
+        <div className="mt-4">
+          <h3 className="mb-3 text-sm font-medium">Добавить вариант</h3>
+          <VariantCreateForm productId={product.id} />
+        </div>
       </section>
     </div>
   );

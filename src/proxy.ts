@@ -3,20 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 // ---------------------------------------------------------------------------
 // Content-Security-Policy with a per-request nonce.
 //
-// Replaces the previous static CSP (which needed script-src 'unsafe-inline').
-// Next.js automatically applies the nonce from this header to its own inline
-// bootstrap scripts; our JsonLd component reads it from the `x-nonce` header.
-// 'strict-dynamic' lets nonced loaders pull further scripts (e.g. Metrika).
+// Next 16 calls this network boundary "proxy" (formerly middleware). It runs
+// on the Node.js runtime and supplies the nonce to Server Components via the
+// request headers.
 // ---------------------------------------------------------------------------
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV !== "production";
 
   const csp = [
     `default-src 'self'`,
-    // 'unsafe-eval' only in dev (React Fast Refresh needs it)
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
-    `style-src 'self' 'unsafe-inline'`, // Tailwind/Next inject inline styles
+    `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' blob: data: https:`,
     `font-src 'self' data:`,
     `connect-src 'self' https://mc.yandex.ru`,
@@ -38,7 +36,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Run on pages only — skip API routes and static assets.
   matcher: [
     {
       source:

@@ -14,8 +14,8 @@ const nextConfig: NextConfig = {
 
   experimental: {
     serverActions: {
-      // Default is 1 MB — too small for product photo uploads
-      // (admin uploads up to 8 files × 5 MB, see uploadProductImagesAction)
+      // This option remains under `experimental` in the installed 16.3 API.
+      // Default is 1 MB — too small for product photo uploads.
       bodySizeLimit: "45mb",
     },
   },

@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { eq, asc, desc, sql } from "drizzle-orm";
+import { eq, asc, desc, inArray, sql } from "drizzle-orm";
 import {
   products,
   productVariants,
@@ -54,10 +54,38 @@ export interface UpdateProductInput {
   isArchived: boolean;
 }
 
+export interface CreateProductInput {
+  slug: string;
+  name: string;
+  description: string | null;
+  basePriceCopecks: bigint;
+  categoryId: string;
+}
+
+/** New goods are drafts; an admin explicitly publishes them after review. */
+export async function createProductAdmin(input: CreateProductInput): Promise<string> {
+  const [created] = await db
+    .insert(products)
+    .values({ ...input, isActive: false, isArchived: false })
+    .returning({ id: products.id, slug: products.slug });
+  if (!created) throw new Error("Product was not created");
+
+  const category = await db.query.categories.findFirst({
+    where: eq(categories.id, input.categoryId),
+    columns: { slug: true },
+  });
+  await invalidateProductCache(created.slug, category?.slug);
+  return created.id;
+}
+
 export async function updateProductAdmin(
   id: string,
   input: UpdateProductInput
 ): Promise<void> {
+  const existing = await db.query.products.findFirst({
+    where: eq(products.id, id),
+    columns: { categoryId: true },
+  });
   const [updated] = await db
     .update(products)
     .set({
@@ -72,10 +100,26 @@ export async function updateProductAdmin(
     .where(eq(products.id, id))
     .returning({ slug: products.slug });
 
-  if (updated) await invalidateProductCache(updated.slug);
+  if (updated) {
+    const categoryIds = [existing?.categoryId, input.categoryId].filter(
+      (categoryId): categoryId is string => Boolean(categoryId)
+    );
+    const affectedCategories = categoryIds.length
+      ? await db.query.categories.findMany({
+          where: inArray(categories.id, categoryIds),
+          columns: { slug: true },
+        })
+      : [];
+    await Promise.all(
+      affectedCategories.map((category) =>
+        invalidateProductCache(updated.slug, category.slug)
+      )
+    );
+  }
 }
 
 export interface UpdateVariantInput {
+  options: Array<{ name: string; value: string }>;
   priceCopecks: bigint | null;
   stockQuantity: number;
   isActive: boolean;
@@ -88,6 +132,7 @@ export async function updateVariantAdmin(
   const [variant] = await db
     .update(productVariants)
     .set({
+      options: input.options,
       priceCopecks: input.priceCopecks,
       stockQuantity: input.stockQuantity,
       isActive: input.isActive,
@@ -100,10 +145,35 @@ export async function updateVariantAdmin(
   if (variant) {
     const product = await db.query.products.findFirst({
       where: eq(products.id, variant.productId),
-      columns: { slug: true },
+      with: { category: { columns: { slug: true } } },
     });
-    if (product) await invalidateProductCache(product.slug);
+    if (product) await invalidateProductCache(product.slug, product.category.slug);
   }
+}
+
+export interface CreateVariantInput {
+  productId: string;
+  sku: string;
+  label: string;
+  options: Array<{ name: string; value: string }>;
+  priceCopecks: bigint | null;
+  stockQuantity: number;
+  isActive: boolean;
+}
+
+export async function createVariantAdmin(input: CreateVariantInput): Promise<string> {
+  const [created] = await db
+    .insert(productVariants)
+    .values(input)
+    .returning({ id: productVariants.id });
+  if (!created) throw new Error("Variant was not created");
+
+  const product = await db.query.products.findFirst({
+    where: eq(products.id, input.productId),
+    with: { category: { columns: { slug: true } } },
+  });
+  if (product) await invalidateProductCache(product.slug, product.category.slug);
+  return created.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +187,7 @@ export async function addProductImageAdmin(
 ): Promise<boolean> {
   const product = await db.query.products.findFirst({
     where: eq(products.id, productId),
-    columns: { slug: true },
+    with: { category: { columns: { slug: true } } },
   });
   if (!product) return false;
 
@@ -135,7 +205,7 @@ export async function addProductImageAdmin(
     sortOrder: row?.next ?? 0,
   });
 
-  await invalidateProductCache(product.slug);
+  await invalidateProductCache(product.slug, product.category.slug);
   return true;
 }
 
@@ -151,9 +221,9 @@ export async function deleteProductImageAdmin(
 
   const product = await db.query.products.findFirst({
     where: eq(products.id, deleted.productId),
-    columns: { slug: true },
+    with: { category: { columns: { slug: true } } },
   });
-  if (product) await invalidateProductCache(product.slug);
+  if (product) await invalidateProductCache(product.slug, product.category.slug);
   return deleted;
 }
 
@@ -163,7 +233,7 @@ export async function makePrimaryProductImageAdmin(
 ): Promise<boolean> {
   const image = await db.query.productImages.findFirst({
     where: eq(productImages.id, imageId),
-    with: { product: { columns: { slug: true } } },
+    with: { product: { with: { category: { columns: { slug: true } } } } },
   });
   if (!image) return false;
 
@@ -180,7 +250,7 @@ export async function makePrimaryProductImageAdmin(
       .where(eq(productImages.id, imageId));
   }
 
-  await invalidateProductCache(image.product.slug);
+  await invalidateProductCache(image.product.slug, image.product.category.slug);
   return true;
 }
 
@@ -195,7 +265,7 @@ export async function moveProductImageAdmin(
 ): Promise<boolean> {
   const image = await db.query.productImages.findFirst({
     where: eq(productImages.id, imageId),
-    with: { product: { columns: { slug: true } } },
+    with: { product: { with: { category: { columns: { slug: true } } } } },
   });
   if (!image) return false;
 
@@ -222,7 +292,7 @@ export async function moveProductImageAdmin(
       .where(eq(productImages.id, neighbour.id));
   });
 
-  await invalidateProductCache(image.product.slug);
+  await invalidateProductCache(image.product.slug, image.product.category.slug);
   return true;
 }
 
@@ -240,8 +310,8 @@ export async function updateProductImageAltAdmin(
 
   const product = await db.query.products.findFirst({
     where: eq(products.id, updated.productId),
-    columns: { slug: true },
+    with: { category: { columns: { slug: true } } },
   });
-  if (product) await invalidateProductCache(product.slug);
+  if (product) await invalidateProductCache(product.slug, product.category.slug);
   return true;
 }
